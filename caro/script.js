@@ -913,9 +913,12 @@
     NET.on("timeout", (seat) => applyRemoteTimeout(seat));
 
     NET.on("close", () => {
+      // Chưa vào phòng thì để nguyên thông báo lỗi kết nối (có gợi ý cách sửa),
+      // tránh việc "Mất kết nối" ghi đè lên hướng dẫn vừa hiện ra.
+      const wasInRoom = Boolean(netRoom);
       resetOnlineState();
       updateRoomButtons();
-      setOnlineStatus("Mất kết nối tới server.", "err");
+      if (wasInRoom) setOnlineStatus("Mất kết nối tới server.", "err");
       updateTurnUi();
       paintTurnGhosts();
     });
