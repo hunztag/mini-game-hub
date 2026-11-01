@@ -30,6 +30,7 @@
   const KEY_LAST = "reflex-last";
   const KEY_LEARNED = "reflex-learned";
   const KEY_STUDY = "reflex-study";
+  const KEY_STATS = "reflex-stats";
 
   const MAX_LIVES = 3;
   const HINT_PENALTY = 3000; // mở gợi ý mất 3 giây
@@ -228,6 +229,8 @@
     studyPractice: $("study-practice"),
     studyMarkAll: $("study-mark-all"),
     studyNote: $("study-note"),
+    saveCard: $("save-card"),
+    studyResume: $("study-resume"),
   };
 
   /* ---------- Trạng thái ---------- */
@@ -293,10 +296,15 @@
   const itemKey = (topicId, levelId, index) => `${state.studyLang}|${topicId}|${levelId}|${index}`;
   const legacyItemKey = (topicId, levelId, index) => `${topicId}|${levelId}|${index}`;
 
-  function isLearned(map, topicId, levelId, index) {
-    if (map[itemKey(topicId, levelId, index)]) return true;
+  /** Đã thuộc chưa — tính theo ngôn ngữ chỉ định (không phụ thuộc state.studyLang) */
+  function learnedFor(langId, map, topicId, levelId, index) {
+    if (map[`${langId}|${topicId}|${levelId}|${index}`]) return true;
     // dữ liệu cũ (trước khi có nhiều ngôn ngữ) không có tiền tố ngôn ngữ
-    return state.studyLang === "en" && !!map[legacyItemKey(topicId, levelId, index)];
+    return langId === "en" && !!map[legacyItemKey(topicId, levelId, index)];
+  }
+
+  function isLearned(map, topicId, levelId, index) {
+    return learnedFor(state.studyLang, map, topicId, levelId, index);
   }
 
   function setLearned(topicId, levelId, index, on) {
@@ -342,6 +350,179 @@
     return n;
   }
 
+  /* ============================================================
+     LƯU TIẾN ĐỘ TRÊN MÁY (localStorage) — học tới đâu, phản xạ tới đâu
+     ============================================================ */
+
+  /** Tổng số mục đã thuộc của một ngôn ngữ trong phần Học */
+  function studyTotals(langId) {
+    const set = LESSON_SETS[langId];
+    if (!set || !Array.isArray(set.topics)) return { done: 0, total: 0 };
+    const map = learnedMap();
+    let done = 0;
+    let total = 0;
+    for (const topic of set.topics) {
+      for (const level of topic.levels || []) {
+        for (let i = 0; i < level.items.length; i += 1) {
+          total += 1;
+          if (learnedFor(langId, map, topic.id, level.id, i)) done += 1;
+        }
+      }
+    }
+    return { done, total };
+  }
+
+  /** Số màn đã qua + tổng kỷ lục của gói đang chọn */
+  function playTotals() {
+    const prog = loadProgress();
+    let cleared = 0;
+    let total = 0;
+    let best = 0;
+    for (const level of state.pack.levels) {
+      level.stages.forEach((_, i) => {
+        total += 1;
+        const rec = prog[progressKey(level.id, i)];
+        if (rec && rec.cleared) cleared += 1;
+        if (rec && rec.best) best += rec.best;
+      });
+    }
+    return { cleared, total, best };
+  }
+
+  /* Số câu đã trả lời / đúng — lưu theo từng gói ngôn ngữ */
+  function loadStats() {
+    return readJson(KEY_STATS) || {};
+  }
+
+  function bumpStats(correct) {
+    const all = loadStats();
+    const id = state.pack ? state.pack.id : "en";
+    const rec = all[id] && typeof all[id] === "object" ? all[id] : { answered: 0, correct: 0 };
+    rec.answered += 1;
+    if (correct) rec.correct += 1;
+    all[id] = rec;
+    all.updated = Date.now();
+    writeJson(KEY_STATS, all);
+  }
+
+  /** Vị trí chơi nên tiếp tục: lần chơi gần nhất nếu còn mở, ngược lại màn trống đầu tiên */
+  function resumePoint() {
+    const last = readJson(KEY_LAST) || {};
+    const level =
+      last.lang === state.pack.id && last.level ? state.pack.levels.find((lv) => lv.id === last.level) : null;
+    const levelId = (level || currentLevel()).id;
+    const stage =
+      last.lang === state.pack.id && Number.isInteger(last.stage) ? clampStage(levelId, last.stage) : firstOpenStage(levelId);
+    const lv = state.pack.levels.find((item) => item.id === levelId) || state.pack.levels[0];
+    return { levelId, stage: clampStage(levelId, stage), levelName: lv.name };
+  }
+
+  function renderSaveCards() {
+    renderPlaySave();
+    renderStudySave();
+  }
+
+  function renderPlaySave() {
+    if (!els.saveCard || !state.pack) return;
+
+    const play = playTotals();
+    // phần Học có ngôn ngữ riêng (có thể khác ngôn ngữ đang chơi) → hiện đúng ngôn ngữ đó
+    const studyLangId = LESSON_SETS[state.studyLang] ? state.studyLang : state.pack.id;
+    const study = studyTotals(studyLangId);
+    const stats = loadStats()[state.pack.id] || { answered: 0, correct: 0 };
+    const point = resumePoint();
+    const accuracy = stats.answered ? Math.round((stats.correct / stats.answered) * 100) : 0;
+    const playPct = play.total ? Math.round((play.cleared / play.total) * 100) : 0;
+    const studyPct = study.total ? Math.round((study.done / study.total) * 100) : 0;
+    const langInfo = LESSON_LANGS.find((l) => l.id === studyLangId) || { flag: "", label: "" };
+
+    els.saveCard.innerHTML = `
+      <div class="save-line">
+        <span class="save-label">⚡ Phản xạ</span>
+        <b>${play.cleared}/${play.total} màn</b>
+      </div>
+      <div class="save-bar" aria-hidden="true"><i style="width:${playPct}%"></i></div>
+      <div class="save-line">
+        <span class="save-label">📚 Đã học (${langInfo.flag} ${esc(langInfo.label)})</span>
+        <b>${study.done}/${study.total} mục</b>
+      </div>
+      <div class="save-bar study" aria-hidden="true"><i style="width:${studyPct}%"></i></div>
+      <p class="save-note">${
+        stats.answered
+          ? `Đã trả lời <b>${stats.answered}</b> câu · đúng <b>${accuracy}%</b> · tổng kỷ lục <b>${play.best}</b>`
+          : "Chưa chơi câu nào — bắt đầu để lưu tiến độ trên máy này."
+      }</p>
+      <div class="save-actions">
+        <button class="ghost-btn tiny" id="resume-play" type="button">▶ Chơi tiếp · ${esc(
+          point.levelName
+        )} màn ${point.stage + 1}</button>
+        <button class="ghost-btn tiny" id="resume-study" type="button">📚 Học tiếp</button>
+      </div>`;
+
+    const playBtn = $("resume-play");
+    if (playBtn) {
+      playBtn.addEventListener("click", () => {
+        clickSound();
+        state.levelId = point.levelId;
+        state.stageIdx = point.stage;
+        renderLevels();
+        renderStages();
+        updateStartLabel();
+        if (els.startBtn) els.startBtn.focus();
+      });
+    }
+
+    const studyBtn = $("resume-study");
+    if (studyBtn) {
+      studyBtn.addEventListener("click", () => {
+        clickSound();
+        showScreen("study");
+        renderTopics();
+        if (state.topicId) openTopic(state.topicId, state.topicLevelId);
+      });
+    }
+  }
+
+  function renderStudySave() {
+    if (!els.studyResume) return;
+    const total = studyTotals(state.studyLang);
+    const topic = topicById(state.topicId);
+    const level = topic ? topic.levels.find((lv) => lv.id === state.topicLevelId) || topic.levels[0] : null;
+    const map = learnedMap();
+    const here = topic && level ? learnedCount(topic, level) : 0;
+    if (!topic) {
+      els.studyResume.innerHTML = "";
+      els.studyResume.classList.add("hidden");
+      return;
+    }
+
+    els.studyResume.classList.remove("hidden");
+    els.studyResume.innerHTML = `
+      <div class="save-line">
+        <span class="save-label">📍 Đang học</span>
+        <b>${topic.icon} ${esc(topic.name)} · ${esc(level ? level.name : "")}</b>
+      </div>
+      <p class="save-note">Cấp độ này <b>${here}/${level ? level.items.length : 0}</b> mục · cả ngôn ngữ <b>${
+      total.done
+    }/${total.total}</b> mục (${total.total ? Math.round((total.done / total.total) * 100) : 0}%)</p>
+      <div class="save-actions">
+        <button class="ghost-btn tiny" id="resume-lesson" type="button">▶ Vào học tiếp</button>
+      </div>`;
+
+    const btn = $("resume-lesson");
+    if (btn) {
+      btn.addEventListener("click", () => {
+        clickSound();
+        openTopic(topic.id, level ? level.id : undefined);
+      });
+    }
+  }
+
+  /** Tiếng bấm nút (đặt tên riêng để không đụng hàm play() của game) */
+  function clickSound() {
+    play("click");
+  }
+
   function showScreen(name) {
     for (const key of ["menu", "study", "lesson", "play"]) {
       const el = els[key];
@@ -363,6 +544,7 @@
   function renderTopics() {
     if (!els.topics) return;
     renderStudyLangs();
+    renderStudySave();
     els.topics.innerHTML = "";
     if (!studyTopics().length) {
       els.topics.innerHTML = '<p class="menu-note">Không tải được dữ liệu học của ngôn ngữ này.</p>';
@@ -513,10 +695,10 @@
     }
 
     if (els.studyNote) {
-      const needVoiceHint = state.studyLang === "zh" && !voiceFor("zh-CN");
+      const online = state.studyLang === "zh" && !voiceFor("zh-CN");
       els.studyNote.innerHTML =
         "Bấm thẻ để ẩn/hiện nghĩa · 🔊 nghe phát âm · ✓ phải <b>gõ lại đúng từ</b> rồi mới tích được đã thuộc" +
-        (needVoiceHint ? "<br />🔊 Máy chưa cài giọng tiếng Trung nên sẽ đọc theo <b>pinyin</b>." : "");
+        (online ? "<br />🔊 Tiếng Trung được phát bằng <b>giọng đọc trực tuyến</b> (cần mạng)." : "");
     }
 
     renderCards();
@@ -534,6 +716,7 @@
       els.studyMarkAll.textContent = "↺ Bỏ tích cả cấp độ";
       els.studyMarkAll.classList.toggle("hidden", done === 0);
     }
+    renderSaveCards();
   }
 
   function renderCards() {
@@ -780,6 +963,7 @@
         renderLevels();
         renderStages();
         updateStartLabel();
+        renderPlaySave();
       });
       els.levels.appendChild(btn);
     }
@@ -820,6 +1004,7 @@
           state.stageIdx = i;
           renderStages();
           updateStartLabel();
+          renderPlaySave();
         });
       }
       els.stages.appendChild(btn);
@@ -1049,6 +1234,7 @@
   function onCorrect(isOpen) {
     state.locked = true;
     stopTimer();
+    bumpStats(true);
 
     state.correct += 1;
     state.combo += 1;
@@ -1085,6 +1271,7 @@
     state.locked = true;
     stopTimer();
     play("error");
+    bumpStats(false);
 
     state.combo = 0;
     state.lives -= 1;
@@ -1103,6 +1290,7 @@
     state.locked = true;
     stopTimer();
     play("timeout");
+    bumpStats(false);
 
     state.combo = 0;
     state.lives -= 1;
@@ -1232,7 +1420,7 @@
     state.running = false;
     state.locked = true;
     els.input.disabled = true;
-    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    stopSpeaking();
 
     /* ---------- Luyện theo chủ đề: không lưu kỷ lục màn ---------- */
     if (state.mode === "custom") {
@@ -1332,7 +1520,7 @@
     state.running = false;
     state.locked = true;
     els.input.disabled = true;
-    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    stopSpeaking();
 
     els.overlay.classList.add("hidden");
 
@@ -1356,6 +1544,7 @@
     renderLevels();
     renderStages();
     updateStartLabel();
+    renderSaveCards();
   }
 
   /* ---------- HUD ---------- */
@@ -1370,6 +1559,14 @@
 
   /* ---------- Đọc từ (Text-to-Speech) ---------- */
   let voiceCache = [];
+
+  /* Giọng tiếng Trung trực tuyến — dùng khi máy chưa cài giọng zh-CN.
+     Youdao trả về MP3 thật nên nghe đúng tiếng Trung (không cần API key).
+     Lưu ý: dịch vụ chỉ có audio cho MỤC TỪ ĐIỂN (từ/cụm ngắn), nên câu dài
+     được chia thành từng mảnh 2 chữ và đọc nối tiếp. */
+  const ZH_TTS_URL = "https://dict.youdao.com/dictvoice?le=zh&type=2&audio=";
+  let zhAudioEl = null;
+  const zhSeq = { queue: [], idx: 0, phase: 0, whole: "", fail: null, played: false, timer: 0, active: false };
 
   function refreshVoices() {
     try {
@@ -1393,7 +1590,7 @@
     );
   }
 
-  /** Pinyin không dấu để đọc tạm khi máy không có giọng tiếng Trung */
+  /** Pinyin không dấu để đọc tạm khi không có nguồn tiếng Trung nào */
   const plainPinyin = (text) =>
     String(text == null ? "" : text)
       .normalize("NFD")
@@ -1408,36 +1605,223 @@
     return q.sayPinyin || q.py || list.find((ans) => ans && !hasCjk(ans)) || "";
   }
 
-  function speak(text, lang, fallback) {
-    if (!text || !("speechSynthesis" in window)) return;
+  /** Dừng mọi âm thanh đang phát (giọng máy + audio mạng) */
+  function stopSpeaking() {
+    if ("speechSynthesis" in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch (_) {
+        /* bỏ qua */
+      }
+    }
+    zhSeq.queue = [];
+    zhSeq.idx = 0;
+    zhSeq.phase = 0;
+    zhSeq.whole = "";
+    zhSeq.fail = null;
+    zhSeq.active = false;
+    zhSeq.played = false;
+    if (zhSeq.timer) {
+      window.clearTimeout(zhSeq.timer);
+      zhSeq.timer = 0;
+    }
+    if (zhAudioEl) {
+      try {
+        zhAudioEl.onerror = null;
+        zhAudioEl.onended = null;
+        zhAudioEl.pause();
+        zhAudioEl.currentTime = 0;
+      } catch (_) {
+        /* bỏ qua */
+      }
+    }
+  }
+
+  /** Chỉ giữ chữ Hán (bỏ dấu câu, pinyin, khoảng trắng) */
+  const zhHanzi = (text) => String(text == null ? "" : text).replace(/[^\u3400-\u4dbf\u4e00-\u9fff]+/g, "");
+
+  /** Chia câu thành mảnh 2 chữ Hán — vừa với mục từ điển của Youdao */
+  function zhPieces(text) {
+    const phrases = String(text == null ? "" : text)
+      .split(/[^\u3400-\u4dbf\u4e00-\u9fff]+/)
+      .filter(Boolean);
+    const out = [];
+    for (const phrase of phrases) {
+      const chars = Array.from(phrase);
+      for (let i = 0; i < chars.length; i += 2) out.push(chars.slice(i, i + 2).join(""));
+    }
+    return out;
+  }
+
+  /**
+   * Phát lần lượt: thử nguyên cụm trước (âm điệu tự nhiên), nếu cụm không có audio
+   * thì chuyển sang đọc từng mảnh 2 chữ; mảnh nào lỗi thì tách tiếp thành từng chữ.
+   */
+  function zhPlayNext() {
+    const seq = zhSeq;
+    if (!seq.active) return;
+
+    let text = "";
+    if (seq.phase === 0) {
+      text = seq.whole;
+    } else {
+      if (seq.idx >= seq.queue.length) {
+        seq.active = false;
+        seq.fail = null;
+        return;
+      }
+      text = seq.queue[seq.idx];
+      seq.idx += 1;
+    }
+    if (!text) {
+      seq.active = false;
+      seq.fail = null;
+      return;
+    }
+
+    const el = zhAudioEl;
+    let settled = false;
+    const stopTimer = () => {
+      if (seq.timer) {
+        window.clearTimeout(seq.timer);
+        seq.timer = 0;
+      }
+    };
+    const next = () => {
+      if (settled) return;
+      settled = true;
+      stopTimer();
+      if (seq.phase === 0) {
+        // đọc được nguyên cụm → xong, không cần đọc từng mảnh
+        seq.active = false;
+        seq.fail = null;
+        return;
+      }
+      zhPlayNext();
+    };
+    const retry = () => {
+      if (settled) return;
+      settled = true;
+      stopTimer();
+
+      if (seq.phase === 0) {
+        // cụm không phải mục từ điển → chuyển sang đọc từng mảnh
+        seq.phase = 1;
+        seq.queue = zhPieces(seq.whole);
+        seq.idx = 0;
+        zhPlayNext();
+        return;
+      }
+
+      const chars = Array.from(text);
+      if (chars.length > 1) {
+        // mảnh cũng không có audio → đọc từng chữ (chữ đơn luôn có)
+        seq.queue.splice(seq.idx, 0, ...chars);
+        zhPlayNext();
+        return;
+      }
+
+      // chưa phát được gì (mất mạng / bị chặn) → chuyển sang giọng dự phòng
+      if (!seq.played && seq.fail) {
+        const fail = seq.fail;
+        seq.fail = null;
+        seq.active = false;
+        fail();
+        return;
+      }
+      zhPlayNext();
+    };
+
+    try {
+      el.onerror = retry;
+      el.onended = next;
+      el.onplaying = () => {
+        seq.played = true;
+      };
+      el.src = ZH_TTS_URL + encodeURIComponent(text);
+      seq.timer = window.setTimeout(retry, 6000);
+      const played = el.play();
+      if (played && typeof played.catch === "function") played.catch(retry);
+    } catch (_) {
+      retry();
+    }
+  }
+
+  /** Phát tiếng Trung thật (audio mạng). Trả về false nếu không thể phát. */
+  function speakChineseAudio(text, onFail) {
+    const hanzi = zhHanzi(text);
+    if (!hanzi || typeof window.Audio !== "function") return false;
+
+    try {
+      if (!zhAudioEl) {
+        zhAudioEl = new Audio();
+        zhAudioEl.preload = "auto";
+        zhAudioEl.id = "zh-tts-audio";
+        zhAudioEl.setAttribute("playsinline", "");
+        zhAudioEl.style.display = "none";
+        if (document.body) document.body.appendChild(zhAudioEl);
+      }
+
+      stopSpeaking();
+      zhSeq.whole = hanzi;
+      zhSeq.phase = 0;
+      zhSeq.queue = [];
+      zhSeq.idx = 0;
+      zhSeq.fail = typeof onFail === "function" ? onFail : null;
+      zhSeq.played = false;
+      zhSeq.active = true;
+      zhPlayNext();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /** Đọc bằng giọng cài sẵn trong máy */
+  function speakNative(text, lang, voice) {
+    const say = String(text == null ? "" : text);
+    if (!say || !("speechSynthesis" in window)) return;
     try {
       const synth = window.speechSynthesis;
       synth.cancel();
-
-      const targetLang = lang || state.pack.voice || "en-US";
-      const voice = voiceFor(targetLang);
-      const say = String(text);
-      let spoken = say;
-      let spokenLang = voice ? voice.lang : targetLang;
-      let useVoice = voice;
-
-      /* Máy không có giọng tiếng Trung → đọc pinyin để vẫn nghe được */
-      if (!voice) {
-        const alt = String(fallback || "").trim();
-        if (hasCjk(say) && alt && !hasCjk(alt)) spoken = plainPinyin(alt);
-        // không có giọng đúng ngôn ngữ đích → dùng giọng mặc định để vẫn phát ra tiếng
-        useVoice = voiceFor("en-US") || voiceCache[0] || null;
-        spokenLang = useVoice ? useVoice.lang : "en-US";
-      }
-
-      const utter = new SpeechSynthesisUtterance(spoken);
-      if (useVoice) utter.voice = useVoice;
-      utter.lang = spokenLang;
+      const utter = new SpeechSynthesisUtterance(say);
+      const picked = voice || voiceFor(lang);
+      if (picked) utter.voice = picked;
+      utter.lang = picked ? picked.lang : lang || "en-US";
       utter.rate = 0.92;
       synth.speak(utter);
     } catch (_) {
       /* trình duyệt không hỗ trợ đọc tiếng */
     }
+  }
+
+  /**
+   * Đọc một từ/câu.
+   * 1. Có giọng đúng ngôn ngữ trong máy → đọc luôn (nhanh, offline).
+   * 2. Tiếng Trung mà máy thiếu giọng zh → phát audio tiếng Trung trực tuyến.
+   * 3. Mất mạng → đọc pinyin bằng giọng có sẵn để vẫn nghe được.
+   */
+  function speak(text, lang, fallback) {
+    const say = String(text == null ? "" : text);
+    if (!say) return;
+
+    // Đang tắt tiếng → không đọc gì cả (audio tiếng Trung cũng tắt theo)
+    if (window.Sound && window.Sound.isMuted && window.Sound.isMuted()) return;
+
+    const targetLang = lang || (state.pack && state.pack.voice) || "en-US";
+    const voice = voiceFor(targetLang);
+    const cjk = hasCjk(say);
+
+    stopSpeaking();
+
+    if (cjk && !voice) {
+      const pinyin = plainPinyin(fallback || "");
+      if (speakChineseAudio(say, () => pinyin && speakNative(pinyin, "en-US"))) return;
+      if (pinyin) speakNative(pinyin, "en-US");
+      return;
+    }
+
+    speakNative(say, targetLang, voice);
   }
 
   /* ---------- Nút âm thanh ---------- */
@@ -1474,10 +1858,13 @@
       const sure = window.confirm("Xoá toàn bộ tiến độ và kỷ lục của game này?");
       if (!sure) return;
       writeJson(KEY_PROGRESS, {});
+      writeJson(KEY_STATS, {});
+      writeJson(KEY_LAST, {});
       state.stageIdx = 0;
       renderLevels();
       renderStages();
       updateStartLabel();
+      renderSaveCards();
       els.resetBtn.textContent = "🗑 Đã xoá";
       window.setTimeout(() => (els.resetBtn.textContent = "🗑 Xoá tiến độ"), 1400);
     });
@@ -1494,6 +1881,7 @@
         renderLevels();
         renderStages();
         updateStartLabel();
+        renderSaveCards();
       });
     }
 
@@ -1502,7 +1890,8 @@
         if (!window.Sound) return;
         window.Sound.toggle();
         paintSound();
-        if (!window.Sound.isMuted()) play("click");
+        if (window.Sound.isMuted()) stopSpeaking();
+        else play("click");
       });
     }
 
@@ -1514,6 +1903,7 @@
         renderLevels();
         renderStages();
         updateStartLabel();
+        renderSaveCards();
       });
     }
 
@@ -1668,6 +2058,7 @@
     renderStages();
     updateStartLabel();
     renderTopics();
+    renderSaveCards();
     wire();
     paintSound();
     showScreen("menu");

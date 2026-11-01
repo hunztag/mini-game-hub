@@ -205,11 +205,23 @@ Hiện từ / câu bằng **tiếng Việt**, bạn phải gõ đáp án bằng 
 | `question` | Câu hỏi ngoại ngữ | Gõ câu trả lời |
 | `open` | Câu hỏi mở | Gõ câu tự do (≥ 2 từ) — luôn được tính đúng |
 | `choice` | Câu hỏi + 4 lựa chọn | Bấm đáp án đúng |
-| `listen` | Phát âm bằng giọng máy (🔊) | Nghe rồi gõ lại |
+| `listen` | Phát âm bằng 🔊 (tiếng Anh: giọng máy · tiếng Trung: audio tiếng Trung thật) | Nghe rồi gõ lại |
 
 **Phím tắt**: `Enter` gửi câu trả lời · `Tab` tới nút Gợi ý · `Esc` về chọn màn (trong phần Học: `Esc` lùi từng bước Chủ đề → Danh sách chủ đề → menu).
 
-**localStorage**: `reflex-progress` (điểm kỷ lục + màn đã qua), `reflex-lang` (ngôn ngữ đang chọn), `reflex-last` (vị trí chơi gần nhất), `reflex-learned` (các mục đã thuộc), `reflex-study` (chủ đề / cấp độ / ẩn nghĩa gần nhất).
+**localStorage**: `reflex-progress` (điểm kỷ lục + màn đã qua), `reflex-lang` (ngôn ngữ đang chọn), `reflex-last` (vị trí chơi gần nhất), `reflex-learned` (các mục đã thuộc), `reflex-study` (chủ đề / cấp độ / ẩn nghĩa gần nhất), `reflex-stats` (số câu đã trả lời / số câu đúng theo từng ngôn ngữ).
+
+### 💾 Lưu tiến độ trên máy
+
+Mọi tiến độ nằm trong `localStorage` của trình duyệt — đóng tab, tắt máy rồi mở lại vẫn còn:
+
+- **Thẻ tiến độ ở menu Chơi** hiển thị ngay khi vào game:
+  - **⚡ Phản xạ X/9 màn** — số màn đã qua của ngôn ngữ đang chọn.
+  - **📚 Đã học X/336 mục** — số từ/câu đã tích `✓` bên tab Học.
+  - Dòng phụ: số câu đã trả lời, **% đúng**, tổng điểm kỷ lục.
+  - Nút **▶ Chơi tiếp** mở đúng cấp độ + màn đang dở; nút **📚 Học tiếp** quay lại đúng chủ đề/cấp độ đang học.
+- **Thẻ 📍 Đang học** ở tab Học ghi nhớ chủ đề + cấp độ gần nhất của từng ngôn ngữ, kèm số mục đã thuộc của cấp độ đó và của cả ngôn ngữ.
+- **🗑 Xoá tiến độ** xoá sạch `reflex-progress`, `reflex-stats`, `reflex-last` (không xoá từ đã thuộc ở tab Học).
 
 ### 📚 Học từ vựng theo chủ đề
 
@@ -220,7 +232,7 @@ Tab **📚 Học từ vựng** mở thư viện từ vựng song ngữ (ngoại 
 - Thẻ từ hiển thị **chữ ngoại ngữ** (Anh hoặc **chữ Hán**), **phiên âm** (IPA hoặc **pinyin**) và **nghĩa tiếng Việt**.
 - Hai nút **🇬🇧 English / 🇨🇳 中文** ở đầu màn Học để đổi ngôn ngữ; tiến độ, cấp độ đang chọn và từ đã thuộc được ghi nhớ **riêng cho từng ngôn ngữ**.
 - Bấm vào thẻ để **ẩn / hiện nghĩa** từng thẻ; bấm **🙈 Ẩn nghĩa** để ẩn toàn bộ (chế độ tự kiểm tra).
-- **🔊** đọc to từ/câu bằng giọng máy (tiếng Anh dùng `en-US`, tiếng Trung dùng `zh-CN`); nếu máy **không cài giọng tiếng Trung**, game tự đọc **pinyin** bằng giọng có sẵn để vẫn nghe được.
+- **🔊** đọc to từ/câu: tiếng Anh dùng **giọng máy** của trình duyệt (`en-US`); tiếng Trung dùng **audio tiếng Trung thật** tải từ `dict.youdao.com/dictvoice` (giọng Quan thoại chuẩn, cần mạng).
 - **✓** chỉ tích **đã thuộc** khi bạn **gõ lại đúng từ**: tiếng Trung là **pinyin** (có dấu hay không dấu, hoặc chữ Hán), tiếng Anh là **chính từ tiếng Anh** — gõ sai thì báo lỗi và chưa tích. Bấm **✓** lần nữa để bỏ tích (không cần gõ).
 - **🔍 Tìm kiếm** theo tiếng Anh, tiếng Việt (không cần dấu), **chữ Hán** hoặc **pinyin** (`mama`, `jiā`, `妈妈` đều tìm được).
 - **↺ Bỏ tích cả cấp độ** xoá nhanh các tích đã thuộc của cấp độ đang mở (chỉ hiện khi đã có mục được tích).
@@ -239,6 +251,16 @@ Chọn 🇨🇳 **中文** ở menu (chế độ Chơi) hoặc ở đầu tab H�
 - Câu **điền từ còn thiếu** hiện thêm **nghĩa tiếng Việt của cả câu** (dòng 🇻🇳) — đáp án vẫn gõ bằng **pinyin**. Tiếng Anh cũng vậy.
 - Sai / hết giờ sẽ hiện đáp án dạng `猫 · māo`.
 - Pinyin được sinh tự động bởi `reflex/pinyin.js` (`ReflexPinyin.answers(pinyin)`), nên không cần khai báo từng biến thể không dấu.
+
+### 🔊 Âm thanh tiếng Trung (giọng thật, không đọc pinyin)
+
+Máy tính thường **không cài giọng `zh-CN`** cho `speechSynthesis`, nên đọc pinyin bằng giọng tiếng Anh nghe sai hẳn. Vì vậy tiếng Trung được phát bằng **MP3 tiếng Trung thật**:
+
+- Nguồn: `https://dict.youdao.com/dictvoice?le=zh&type=2&audio=<chữ Hán>` (giọng Quan thoại), phát qua thẻ `<audio>` ẩn `#zh-tts-audio`.
+- Nguồn này chỉ tổng hợp được **mục từ điển** (từ/cụm ngắn). Với câu dài, game tự hạ cấp theo 3 mức:
+  1. đọc **cả cụm** → 2. đọc từng **mẩu 2 chữ** → 3. đọc từng **chữ**.
+- Nếu mạng lỗi / bị chặn hoàn toàn: đọc **pinyin** bằng giọng có sẵn để vẫn nghe được (chất lượng kém hơn).
+- Bấm 🔇 sẽ tắt toàn bộ âm thanh, gồm cả audio tiếng Trung; rời màn chơi sẽ dừng audio đang phát.
 
 ### Thêm chủ đề / từ vựng mới
 

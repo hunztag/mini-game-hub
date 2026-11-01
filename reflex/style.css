@@ -129,6 +129,91 @@ body {
   display: none;
 }
 
+/* ---------- Thẻ tiến độ đã lưu trên máy ---------- */
+.save-card {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.7rem 0.85rem;
+  margin-bottom: 0.9rem;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--card);
+}
+
+.save-card.hidden {
+  display: none;
+}
+
+.save-card:empty {
+  display: none;
+}
+
+.save-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  font-size: 0.82rem;
+}
+
+.save-label {
+  color: var(--muted);
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.save-line b {
+  color: var(--text);
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.save-bar {
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.18);
+  overflow: hidden;
+}
+
+.save-bar i {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  transition: width 0.35s ease;
+}
+
+.save-bar.study i {
+  background: linear-gradient(90deg, var(--accent-2), var(--accent));
+}
+
+.save-note {
+  margin: 0.1rem 0 0;
+  font-size: 0.76rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.save-note b {
+  color: var(--text);
+}
+
+.save-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.15rem;
+}
+
+.save-actions .ghost-btn {
+  flex: 1 1 auto;
+  white-space: nowrap;
+}
+
 /* ---------- Chọn cấp độ ---------- */
 .levels {
   display: grid;
