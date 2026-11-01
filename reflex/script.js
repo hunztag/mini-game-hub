@@ -13,7 +13,7 @@
   const DATA = window.ReflexData || { packs: [] };
   const PY =
     window.ReflexPinyin ||
-    { toneless: () => [], answers: (p) => [p], mask: (p) => p, hasCjk: () => false };
+    { toneless: () => [], answers: (p) => [p], mask: (p) => p, hasCjk: () => false, hasTone: () => false };
 
   /* Bộ dữ liệu phần Học — mỗi ngôn ngữ một bộ chủ đề riêng */
   const LESSON_SETS = {
@@ -31,10 +31,18 @@
   const KEY_LEARNED = "reflex-learned";
   const KEY_STUDY = "reflex-study";
   const KEY_STATS = "reflex-stats";
+  const KEY_WRONG = "reflex-wrong";
+  const KEY_DAILY = "reflex-daily";
+  const KEY_STRICT = "reflex-strict";
+  const KEY_SLOW = "reflex-slow";
 
   const MAX_LIVES = 3;
   const HINT_PENALTY = 3000; // mở gợi ý mất 3 giây
   const TICK_MS = 50;
+  const DAY_MS = 86400000;
+  const DAILY_GOAL = 20; // câu mỗi ngày
+  /* Thang giãn cách (ngày) theo số lần nhớ đúng liên tiếp — lặp lại ngắt quãng */
+  const SRS_STEPS = [0, 1, 3, 7, 21, 45, 90];
 
   /* ---------- Tiện ích ---------- */
   const $ = (id) => document.getElementById(id);
@@ -175,6 +183,95 @@
     return n.split(" ").filter(Boolean).length >= 2 && n.length >= 4;
   }
 
+  /* ---------- Dấu thanh (pinyin) ---------- */
+  const TONE_MARK = { "\u0304": "1", "\u0301": "2", "\u030c": "3", "\u0300": "4" };
+
+  /** Pinyin KHÔNG DẤU (bỏ mọi dấu thanh/dấu mũ) → so được âm tiết */
+  function toneKey(value) {
+    return String(value == null ? "" : value)
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // bỏ toàn bộ dấu (ā→a, ǚ→u, ü→u)
+      .replace(/đ/g, "d")
+      .replace(/[’‘`´]/g, "'")
+      .replace(/v/g, "u") // người học hay gõ "lv" thay cho "lǚ"
+      .replace(/[1-5](?=\s|$)/g, "") // bỏ số thanh kiểu "ma3"
+      .replace(/[^a-z0-9']/g, "")
+      .trim();
+  }
+
+  /** Chuỗi thanh của từng âm tiết: "nǐ hǎo" → "32", "ni hao" → "00" */
+  function toneSig(value) {
+    const s = String(value == null ? "" : value)
+      .toLowerCase()
+      .normalize("NFD");
+    const out = [];
+    let tone = "0";
+    let has = false;
+    for (const ch of s) {
+      if (TONE_MARK[ch]) {
+        tone = TONE_MARK[ch];
+        has = true;
+        continue;
+      }
+      if (/[\u0300-\u036f]/.test(ch)) continue; // dấu khác (ü…)
+      if (/[1-5]/.test(ch)) {
+        // kiểu gõ số: "ma3"
+        tone = ch === "5" ? "0" : ch;
+        has = true;
+        continue;
+      }
+      if (/[a-z0-9]/.test(ch)) {
+        has = true;
+        continue;
+      }
+      if (/[\s'-]/.test(ch) && has) {
+        out.push(tone);
+        tone = "0";
+        has = false;
+      }
+    }
+    if (has) out.push(tone);
+    return out.join("");
+  }
+
+  /** Chế độ khắt khe dấu thanh: mặc định BẬT cho mọi đáp án là pinyin */
+  function strictToneOn() {
+    const saved = readLocal(KEY_STRICT);
+    if (saved === "1") return true;
+    if (saved === "0") return false;
+    return true;
+  }
+
+  /**
+   * Chấm câu trả lời:
+   *  "ok"   → đúng
+   *  "tone" → đúng âm tiết nhưng SAI dấu thanh (chỉ khi bật 🎯 Dấu thanh)
+   *  "no"   → sai
+   * Đáp án tiếng Trung gồm chữ Hán + pinyin có dấu + pinyin không dấu, mà hàm
+   * matches() lại bỏ qua dấu, nên phải xét riêng nhóm pinyin có dấu trước —
+   * nếu không thì gõ "jia" sẽ luôn được tính đúng dù thiếu dấu thanh.
+   */
+  function judgeAnswers(input, answers) {
+    const list = (answers || []).filter(Boolean);
+    const value = String(input == null ? "" : input).trim();
+    if (!value) return "no";
+
+    // 1) gõ đúng chữ Hán → luôn đúng
+    if (hasCjk(value) && list.some((ans) => hasCjk(ans) && matches(value, ans))) return "ok";
+
+    // 2) nhóm pinyin có dấu thanh: phải so cả dấu
+    const toned = list.filter((ans) => !hasCjk(ans) && PY.hasTone(ans));
+    if (toned.length && strictToneOn()) {
+      const same = toned.find((ans) => toneKey(value) === toneKey(ans));
+      if (same) return toneSig(value) === toneSig(same) ? "ok" : "tone";
+      return list.some((ans) => matches(value, ans)) ? "tone" : "no";
+    }
+
+    // 3) so khớp dễ thở (pinyin không dấu / tiếng Anh…)
+    return list.some((ans) => matches(value, ans)) ? "ok" : "no";
+  }
+
   /* ---------- DOM ---------- */
   const els = {
     menu: $("menu"),
@@ -228,9 +325,17 @@
     studyList: $("study-list"),
     studyPractice: $("study-practice"),
     studyMarkAll: $("study-mark-all"),
+    lessonReview: $("lesson-review"),
+    lessonStrict: $("lesson-strict"),
     studyNote: $("study-note"),
     saveCard: $("save-card"),
     studyResume: $("study-resume"),
+    strictBtn: $("strict-btn"),
+    slowBtn: $("slow-btn"),
+    survivalBtn: $("survival-btn"),
+    exportBtn: $("export-btn"),
+    importBtn: $("import-btn"),
+    importFile: $("import-file"),
   };
 
   /* ---------- Trạng thái ---------- */
@@ -264,6 +369,7 @@
     timerId: 0,
     nextTimer: 0,
     lastTick: -1,
+    requeued: null, // câu đã sai và đã được đẩy xuống cuối lượt
   };
 
   /* ---------- Tiến độ ---------- */
@@ -311,12 +417,75 @@
     const all = learnedMap();
     const key = itemKey(topicId, levelId, index);
     const legacy = legacyItemKey(topicId, levelId, index);
-    if (on) all[key] = 1;
-    else {
+    if (on) {
+      // mục vừa học → đến hạn ôn ngay trong hôm nay
+      all[key] = srsOf(all[key] || all[legacy]) || { due: Date.now(), reps: 0, ease: 2.5, lapses: 0 };
+    } else {
       delete all[key];
       delete all[legacy];
     }
     writeJson(KEY_LEARNED, all);
+  }
+
+  /** Đọc bản ghi lặp lại ngắt quãng (dữ liệu cũ chỉ là 1 → mục mới, đến hạn ngay) */
+  function srsOf(entry) {
+    if (!entry) return null;
+    if (typeof entry !== "object") return { due: 0, reps: 0, ease: 2.5, lapses: 0 };
+    return {
+      due: Number(entry.due) || 0,
+      reps: Number(entry.reps) || 0,
+      ease: Number(entry.ease) || 2.5,
+      lapses: Number(entry.lapses) || 0,
+    };
+  }
+
+  function srsEntry(langId, map, topicId, levelId, index) {
+    const key = `${langId}|${topicId}|${levelId}|${index}`;
+    if (map[key]) return srsOf(map[key]);
+    const legacy = legacyItemKey(topicId, levelId, index);
+    if (langId === "en" && map[legacy]) return srsOf(map[legacy]);
+    return null;
+  }
+
+  /** Đúng → giãn cách dài ra; sai → học lại từ đầu (đến hạn ngay) */
+  function scheduleCard(langId, topicId, levelId, index, ok) {
+    const all = learnedMap();
+    const key = `${langId}|${topicId}|${levelId}|${index}`;
+    const legacy = legacyItemKey(topicId, levelId, index);
+    const prev = all[key] || (langId === "en" ? all[legacy] : null);
+    const cur = srsOf(prev) || { due: 0, reps: 0, ease: 2.5, lapses: 0 };
+    const now = Date.now();
+    const round = (n) => Math.round(n * 100) / 100;
+    let next;
+    if (ok) {
+      const reps = Math.min(cur.reps + 1, SRS_STEPS.length - 1);
+      next = { due: now + SRS_STEPS[reps] * DAY_MS, reps, ease: Math.min(3, round(cur.ease + 0.05)), lapses: cur.lapses };
+    } else {
+      next = { due: now, reps: 0, ease: Math.max(1.3, round(cur.ease - 0.2)), lapses: cur.lapses + 1 };
+    }
+    all[key] = next;
+    if (langId === "en") delete all[legacy];
+    writeJson(KEY_LEARNED, all);
+    return next;
+  }
+
+  /** Các mục đã học và đã đến hạn ôn của một ngôn ngữ (cũ nhất trước) */
+  function dueList(langId) {
+    const set = LESSON_SETS[langId];
+    if (!set || !Array.isArray(set.topics)) return [];
+    const map = learnedMap();
+    const now = Date.now();
+    const out = [];
+    for (const topic of set.topics) {
+      for (const level of topic.levels || []) {
+        level.items.forEach((item, i) => {
+          const srs = srsEntry(langId, map, topic.id, level.id, i);
+          if (srs && srs.due <= now) out.push({ item, topicId: topic.id, levelId: level.id, index: i, due: srs.due });
+        });
+      }
+    }
+    out.sort((a, b) => a.due - b.due);
+    return out;
   }
 
   /** Đáp án được chấp nhận khi tích "đã thuộc" (tiếng Trung: chữ Hán + pinyin) */
@@ -326,9 +495,7 @@
 
   function learnedMap() {
     const raw = readJson(KEY_LEARNED);
-    const out = {};
-    if (raw) for (const k of Object.keys(raw)) if (raw[k]) out[k] = 1;
-    return out;
+    return raw && typeof raw === "object" ? raw : {};
   }
 
   function topicById(id) {
@@ -405,6 +572,102 @@
     writeJson(KEY_STATS, all);
   }
 
+  /* ---------- Từ hay sai ---------- */
+  const wrongKey = (langId, topicId, levelId, index) => `${langId}|${topicId}|${levelId}|${index}`;
+
+  function wrongMap() {
+    const raw = readJson(KEY_WRONG);
+    return raw && typeof raw === "object" ? raw : {};
+  }
+
+  function bumpWrong(langId, topicId, levelId, index, ok) {
+    const all = wrongMap();
+    const key = wrongKey(langId, topicId, levelId, index);
+    const cur = Number(all[key]) || 0;
+    if (ok) {
+      if (cur <= 1) delete all[key];
+      else all[key] = cur - 1;
+    } else {
+      all[key] = Math.min(9, cur + 1);
+    }
+    writeJson(KEY_WRONG, all);
+  }
+
+  /** Danh sách từ hay sai (sai nhiều xếp trước) */
+  function wrongList(langId) {
+    const set = LESSON_SETS[langId];
+    if (!set || !Array.isArray(set.topics)) return [];
+    const all = wrongMap();
+    const out = [];
+    for (const topic of set.topics) {
+      for (const level of topic.levels || []) {
+        level.items.forEach((item, i) => {
+          const n = Number(all[wrongKey(langId, topic.id, level.id, i)]) || 0;
+          if (n > 0) out.push({ item, topicId: topic.id, levelId: level.id, index: i, n });
+        });
+      }
+    }
+    out.sort((a, b) => b.n - a.n);
+    return out;
+  }
+
+  /* ---------- Chuỗi ngày học + mục tiêu mỗi ngày ---------- */
+  function dayKey(d) {
+    const x = d || new Date();
+    return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
+  }
+
+  function bumpDaily() {
+    const all = readJson(KEY_DAILY) || {};
+    const key = dayKey();
+    all[key] = (Number(all[key]) || 0) + 1;
+    const keys = Object.keys(all).sort();
+    while (keys.length > 180) delete all[keys.shift()];
+    writeJson(KEY_DAILY, all);
+  }
+
+  function todayCount() {
+    return Number((readJson(KEY_DAILY) || {})[dayKey()]) || 0;
+  }
+
+  function dayStreak() {
+    const all = readJson(KEY_DAILY) || {};
+    const d = new Date();
+    if (!Number(all[dayKey(d)])) d.setDate(d.getDate() - 1);
+    let n = 0;
+    while (Number(all[dayKey(d)])) {
+      n += 1;
+      d.setDate(d.getDate() - 1);
+    }
+    return n;
+  }
+
+  /** Tìm chủ đề/cấp độ/vị trí của một mục từ vựng (để chấm SRS) */
+  function metaOfItem(item) {
+    if (!item) return null;
+    for (const topic of studyTopics()) {
+      for (const level of topic.levels || []) {
+        const index = level.items.indexOf(item);
+        if (index >= 0) return { topicId: topic.id, levelId: level.id, index };
+      }
+    }
+    return null;
+  }
+
+  /** Ghi nhận mỗi câu trả lời: lịch ôn + từ hay sai + chuỗi ngày */
+  function recordAnswer(ok) {
+    bumpDaily();
+    const q = state.current;
+    if (!q || !q.item) return;
+    const meta = metaOfItem(q.item);
+    if (!meta) return;
+    const map = learnedMap();
+    const known = learnedFor(state.studyLang, map, meta.topicId, meta.levelId, meta.index);
+    // chỉ đẩy lịch ôn cho mục đã học — chơi game không tự biến mục lạ thành “đã thuộc”
+    if (known) scheduleCard(state.studyLang, meta.topicId, meta.levelId, meta.index, ok);
+    bumpWrong(state.studyLang, meta.topicId, meta.levelId, meta.index, ok);
+  }
+
   /** Vị trí chơi nên tiếp tục: lần chơi gần nhất nếu còn mở, ngược lại màn trống đầu tiên */
   function resumePoint() {
     const last = readJson(KEY_LAST) || {};
@@ -435,6 +698,10 @@
     const playPct = play.total ? Math.round((play.cleared / play.total) * 100) : 0;
     const studyPct = study.total ? Math.round((study.done / study.total) * 100) : 0;
     const langInfo = LESSON_LANGS.find((l) => l.id === studyLangId) || { flag: "", label: "" };
+    const due = dueList(studyLangId).length;
+    const wrongs = wrongList(studyLangId).length;
+    const streak = dayStreak();
+    const today = todayCount();
 
     els.saveCard.innerHTML = `
       <div class="save-line">
@@ -452,11 +719,15 @@
           ? `Đã trả lời <b>${stats.answered}</b> câu · đúng <b>${accuracy}%</b> · tổng kỷ lục <b>${play.best}</b>`
           : "Chưa chơi câu nào — bắt đầu để lưu tiến độ trên máy này."
       }</p>
+      <p class="save-note">🔥 <b>${streak}</b> ngày liên tiếp · hôm nay <b>${today}/${DAILY_GOAL}</b> câu${
+        due ? ` · ⏰ <b>${due}</b> mục đến hạn ôn` : ""
+      }${wrongs ? ` · ⚠️ <b>${wrongs}</b> từ hay sai` : ""}</p>
       <div class="save-actions">
         <button class="ghost-btn tiny" id="resume-play" type="button">▶ Chơi tiếp · ${esc(
           point.levelName
         )} màn ${point.stage + 1}</button>
         <button class="ghost-btn tiny" id="resume-study" type="button">📚 Học tiếp</button>
+        ${due ? `<button class="ghost-btn tiny" id="review-now" type="button">🔁 Ôn ${due} mục</button>` : ""}
       </div>`;
 
     const playBtn = $("resume-play");
@@ -481,6 +752,14 @@
         if (state.topicId) openTopic(state.topicId, state.topicLevelId);
       });
     }
+
+    const reviewBtn = $("review-now");
+    if (reviewBtn) {
+      reviewBtn.addEventListener("click", () => {
+        clickSound();
+        startReview(false, "menu");
+      });
+    }
   }
 
   function renderStudySave() {
@@ -490,6 +769,8 @@
     const level = topic ? topic.levels.find((lv) => lv.id === state.topicLevelId) || topic.levels[0] : null;
     const map = learnedMap();
     const here = topic && level ? learnedCount(topic, level) : 0;
+    const due = dueList(state.studyLang).length;
+    const wrongs = wrongList(state.studyLang).length;
     if (!topic) {
       els.studyResume.innerHTML = "";
       els.studyResume.classList.add("hidden");
@@ -504,9 +785,11 @@
       </div>
       <p class="save-note">Cấp độ này <b>${here}/${level ? level.items.length : 0}</b> mục · cả ngôn ngữ <b>${
       total.done
-    }/${total.total}</b> mục (${total.total ? Math.round((total.done / total.total) * 100) : 0}%)</p>
+    }/${total.total}</b> mục (${total.total ? Math.round((total.done / total.total) * 100) : 0}%) · ⏰ <b>${due}</b> cần ôn · ⚠️ <b>${wrongs}</b> hay sai</p>
       <div class="save-actions">
         <button class="ghost-btn tiny" id="resume-lesson" type="button">▶ Vào học tiếp</button>
+        <button class="ghost-btn tiny" id="review-today" type="button"${due ? "" : " disabled"}>🔁 Ôn hôm nay (${due})</button>
+        <button class="ghost-btn tiny" id="wrong-list" type="button"${wrongs ? "" : " disabled"}>⚠️ Từ hay sai (${wrongs})</button>
       </div>`;
 
     const btn = $("resume-lesson");
@@ -514,6 +797,22 @@
       btn.addEventListener("click", () => {
         clickSound();
         openTopic(topic.id, level ? level.id : undefined);
+      });
+    }
+
+    const reviewToday = $("review-today");
+    if (reviewToday) {
+      reviewToday.addEventListener("click", () => {
+        clickSound();
+        startReview(false, "study");
+      });
+    }
+
+    const wrongBtn = $("wrong-list");
+    if (wrongBtn) {
+      wrongBtn.addEventListener("click", () => {
+        clickSound();
+        startReview(true, "study");
       });
     }
   }
@@ -657,6 +956,7 @@
 
     saveStudyState();
     renderTopics();
+    paintStrict();
     if (els.lesson && !els.lesson.classList.contains("hidden")) renderLesson();
   }
 
@@ -716,6 +1016,7 @@
       els.studyMarkAll.textContent = "↺ Bỏ tích cả cấp độ";
       els.studyMarkAll.classList.toggle("hidden", done === 0);
     }
+    paintLessonExtra();
     renderSaveCards();
   }
 
@@ -750,14 +1051,18 @@
     for (const { item, i } of rows) {
       const learned = isLearned(map, topic.id, level.id, i);
       const cjk = hasCjk(item.en);
+      const srs = learned ? srsEntry(state.studyLang, map, topic.id, level.id, i) : null;
+      // chỉ nhắc “đến hạn ôn” khi đã ôn ít nhất một lần (mục vừa học hôm nay thì thôi)
+      const due = srs ? srs.due <= Date.now() && srs.reps > 0 : false;
       const card = document.createElement("article");
-      card.className = "card" + (learned ? " learned" : "");
+      card.className = "card" + (learned ? " learned" : "") + (due ? " due" : "");
       card.dataset.index = String(i);
       card.innerHTML = `
         <button class="card-main" type="button">
           <span class="card-en${cjk ? " card-hanzi" : ""}">${esc(item.en)}</span>
           ${item.ipa ? `<span class="card-ipa${cjk ? " card-pinyin" : ""}">${esc(item.ipa)}</span>` : ""}
           <span class="card-vi">${esc(item.vi)}</span>
+          ${due ? '<span class="card-due">⏰ đến hạn ôn</span>' : ""}
         </button>
         <span class="card-tools">
           <button class="ghost-btn icon-btn card-say" type="button" title="Nghe phát âm" aria-label="Nghe phát âm">🔊</button>
@@ -828,17 +1133,27 @@
             return;
           }
 
-          if (studyAnswers(item).some((ans) => matches(value, ans))) {
+          const verdict = judgeAnswers(value, studyAnswers(item));
+          if (verdict === "ok") {
+            // lần đầu tích: hẹn ôn ngay trong hôm nay, chưa cộng thêm ngày
             setLearned(topic.id, level.id, i, true);
+            bumpWrong(state.studyLang, topic.id, level.id, i, true);
             closeQuiz();
             card.classList.add("learned");
+            card.classList.remove("due");
             checkBtn.setAttribute("aria-pressed", "true");
             play("click");
             updateStudyProgress();
           } else {
             play("error");
             msg.className = "card-quiz-msg bad";
-            msg.textContent = cjk ? "❌ Chưa đúng — gõ pinyin của từ này" : "❌ Chưa đúng — gõ lại từ tiếng Anh";
+            if (verdict === "tone") {
+              msg.innerHTML = `❌ Đúng âm tiết nhưng <b>sai dấu thanh</b> — đáp án: <b>${esc(
+                item.ipa || item.en
+              )}</b>`;
+            } else {
+              msg.textContent = cjk ? "❌ Chưa đúng — gõ pinyin của từ này" : "❌ Chưa đúng — gõ lại từ tiếng Anh";
+            }
             input.classList.add("shake");
             window.setTimeout(() => input.classList.remove("shake"), 340);
             input.select();
@@ -868,50 +1183,77 @@
   }
 
   /* ---------- Sinh câu hỏi luyện từ danh sách đã học ---------- */
-  function buildPractice(items, count) {
+  function buildPractice(items, count, opts) {
     const pool = (items || []).filter((it) => it && it.en && it.vi);
     if (!pool.length) return [];
 
     const picked = shuffle(pool.slice()).slice(0, Math.min(count || 12, pool.length));
-    const viPool = pool.map((it) => it.vi);
-    const list = [];
+    const viPool = Array.from(new Set(pool.map((it) => it.vi)));
+    const options = (right) => shuffle([right].concat(shuffle(viPool.filter((v) => v !== right)).slice(0, 3)));
+    const withOptions = (right) => {
+      const list = options(right);
+      return list.length === 4 ? list : null;
+    };
+    const listen = opts && opts.listen === false ? false : true;
+    const out = [];
 
     picked.forEach((item, i) => {
       const long = item.phrase || item.en.split(" ").length >= 3;
       const cjk = hasCjk(item.en);
 
-      // cứ 4 câu thì có 1 câu trắc nghiệm chiều Anh → Việt
-      if (i % 4 === 3) {
-        const others = shuffle(viPool.filter((v) => v !== item.vi)).slice(0, 3);
-        if (others.length === 3) {
-          list.push({
-            k: "choice",
-            q: `Từ “${item.en}” có nghĩa là gì?`,
-            o: shuffle([item.vi].concat(others)),
+      // cứ 5 câu có 1 câu NGHE → chọn nghĩa (không nhìn thấy chữ)
+      if (listen && i % 5 === 4) {
+        const o = withOptions(item.vi);
+        if (o) {
+          out.push({
+            k: "lchoice",
+            say: item.en,
+            sayPinyin: item.ipa || "",
+            q: "Nghe và chọn nghĩa đúng",
+            o,
             a: [item.vi],
-            hint: item.ipa || "",
+            hint: "",
+            item,
           });
           return;
         }
       }
 
-      list.push({
+      // cứ 4 câu thì có 1 câu trắc nghiệm chiều Anh → Việt
+      if (i % 4 === 3) {
+        const o = withOptions(item.vi);
+        if (o) {
+          out.push({
+            k: "choice",
+            q: `Từ “${item.en}” có nghĩa là gì?`,
+            o,
+            a: [item.vi],
+            hint: item.ipa || "",
+            item,
+          });
+          return;
+        }
+      }
+
+      out.push({
         k: long ? "sentence" : "word",
         q: item.vi,
         // tiếng Trung: chấp nhận cả chữ Hán lẫn pinyin (có dấu / không dấu)
         a: cjk ? [item.en].concat(PY.answers(item.ipa)) : [item.en],
         show: cjk ? `${item.en} · ${item.ipa}` : "",
         hint: item.ipa || "",
+        item,
       });
     });
 
-    return list;
+    return out;
   }
 
   function practiceFrom(items, title, time, back) {
-    const list = buildPractice(items, 12);
+    const count = Math.min(24, Math.max(8, items.length));
+    const list = buildPractice(items, count);
     if (!list.length) return;
-    startCustom(list, { title, time, items: items.slice(), count: 12, back: back || "lesson" });
+    startCustom(list, { title, time, items: items.slice(), count, back: back || "lesson" });
   }
 
   function practiceAllTopics() {
@@ -925,6 +1267,60 @@
     const label = info ? ` · ${info.label}` : "";
     practiceFrom(items, `🔀 Luyện tổng hợp ${studyTopics().length} chủ đề${label}`, 15, "study");
   }
+
+  /** Ôn tập: các mục đã học đến hạn hôm nay (hoặc riêng danh sách từ hay sai) */
+  function startReview(onlyWrong, back) {
+    const langId = state.studyLang;
+    const rows = onlyWrong ? wrongList(langId) : dueList(langId);
+    const seen = new Set();
+    const items = [];
+    for (const row of rows) {
+      if (seen.has(row.item)) continue;
+      seen.add(row.item);
+      items.push(row.item);
+    }
+
+    if (!items.length) {
+      play("error");
+      window.alert(
+        onlyWrong
+          ? "Chưa có từ nào bị sai — cứ luyện thêm nhé!"
+          : "Hôm nay không còn mục nào đến hạn ôn. Học thêm vài từ mới đi!"
+      );
+      return;
+    }
+
+    const count = Math.min(24, Math.max(8, items.length));
+    const list = buildPractice(items, count, { listen: !onlyWrong });
+    if (!list.length) return;
+    const title = onlyWrong
+      ? `⚠️ Từ hay sai · ${items.length} mục`
+      : `🔁 Ôn tập hôm nay · ${items.length} mục`;
+    startCustom(list, { title, time: 14, items: items.slice(), count, back: back || "study" });
+  }
+
+  /** Chơi tự do trên toàn bộ kho từ của ngôn ngữ đang chọn (câu sinh động) */
+  function startSurvival() {
+    const langId = state.pack && LESSON_SETS[state.pack.id] ? state.pack.id : state.studyLang;
+    if (langId !== state.studyLang) setStudyLang(langId);
+
+    const items = [];
+    studyTopics().forEach((topic) => {
+      topic.levels.forEach((lv) => lv.items.forEach((it) => items.push(it)));
+    });
+    if (!items.length) return;
+
+    const list = buildPractice(items, 30);
+    if (!list.length) return;
+    startCustom(list, {
+      title: `♾️ Sinh tồn · ${items.length} mục`,
+      time: 12,
+      items,
+      count: 30,
+      back: "menu",
+    });
+  }
+
 
   /* ---------- Màn chọn ---------- */
   function renderLang() {
@@ -944,6 +1340,7 @@
       const p = packs[0];
       els.langChip.textContent = `${p.flag} ${p.name} ↔ 🇻🇳 ${p.sourceLabel}`;
     }
+    paintStrict();
   }
 
   function renderLevels() {
@@ -1033,6 +1430,7 @@
     state.current = null;
     state.mode = "stage";
     state.custom = null;
+    state.requeued = new Set();
 
     els.overlay.classList.add("hidden");
     els.quitBtn.textContent = "← Chọn màn";
@@ -1063,9 +1461,10 @@
     state.lives = MAX_LIVES;
     state.locked = false;
     state.current = null;
+    state.requeued = new Set();
 
     els.overlay.classList.add("hidden");
-    els.quitBtn.textContent = "← Về phần Học";
+    els.quitBtn.textContent = opts.back === "menu" ? "← Chọn màn" : "← Về phần Học";
     showScreen("play");
     els.stageTitle.textContent = opts.title;
 
@@ -1116,6 +1515,7 @@
   function renderQuestion(q) {
     const target = state.pack.targetLabel;
     const isZh = state.pack.voice === "zh-CN";
+    paintSlow();
     els.choices.innerHTML = "";
     els.choices.classList.add("hidden");
     els.speakBtn.classList.add("hidden");
@@ -1161,6 +1561,15 @@
         renderChoices(q);
         break;
 
+      case "lchoice":
+        els.promptKind.textContent = "Nghe và chọn nghĩa";
+        els.promptText.innerHTML = `<span class="say-icon">🔊</span>Nghe rồi chọn nghĩa đúng<br /><small>Bấm “Nghe lại” nếu cần</small>`;
+        els.speakBtn.classList.remove("hidden");
+        setHint("", false);
+        renderChoices(q);
+        speak(q.say || q.q, null, speakFallback(q));
+        break;
+
       case "sentence":
         els.promptKind.textContent = `Dịch cả câu sang ${target}`;
         els.promptText.textContent = q.q;
@@ -1201,6 +1610,9 @@
       const filled = q.q.replace(/_{2,}/g, first);
       return q.py ? `${filled} (${q.py})` : filled;
     }
+    if (q.k === "lchoice" && q.say) {
+      return `${first} (${q.say}${q.sayPinyin ? " · " + q.sayPinyin : ""})`;
+    }
     return q.show || first;
   }
 
@@ -1227,7 +1639,9 @@
       return;
     }
 
-    if (q.a.some((ans) => matches(value, ans))) onCorrect(false);
+    const verdict = judgeAnswers(value, Array.isArray(q.a) ? q.a : []);
+    if (verdict === "ok") onCorrect(false);
+    else if (verdict === "tone") onWrong(value, "tone");
     else onWrong(value);
   }
 
@@ -1235,6 +1649,7 @@
     state.locked = true;
     stopTimer();
     bumpStats(true);
+    recordAnswer(true);
 
     state.correct += 1;
     state.combo += 1;
@@ -1267,11 +1682,12 @@
     );
   }
 
-  function onWrong(text) {
+  function onWrong(text, reason) {
     state.locked = true;
     stopTimer();
     play("error");
     bumpStats(false);
+    recordAnswer(false);
 
     state.combo = 0;
     state.lives -= 1;
@@ -1280,7 +1696,13 @@
     updateHud();
 
     els.feedback.className = "feedback bad";
-    els.feedback.innerHTML = `❌ Chưa đúng — đáp án: <b>${esc(answerText(state.current))}</b>`;
+    if (reason === "tone") {
+      els.feedback.innerHTML = `❌ Đúng âm tiết nhưng <b>sai dấu thanh</b> — đáp án: <b>${esc(
+        answerText(state.current)
+      )}</b>`;
+    } else {
+      els.feedback.innerHTML = `❌ Chưa đúng — đáp án: <b>${esc(answerText(state.current))}</b>`;
+    }
 
     state.nextTimer = window.setTimeout(afterMiss, 1900);
   }
@@ -1291,6 +1713,7 @@
     stopTimer();
     play("timeout");
     bumpStats(false);
+    recordAnswer(false);
 
     state.combo = 0;
     state.lives -= 1;
@@ -1309,12 +1732,18 @@
       finish(false);
       return;
     }
+    const q = state.current;
+    // câu vừa sai được đẩy xuống cuối lượt (mỗi câu 1 lần) để buộc phải gặp lại
+    if (q && state.requeued && !state.requeued.has(q) && state.list.length < 90) {
+      state.requeued.add(q);
+      state.list.push(q);
+    }
     state.idx += 1;
     askNext();
   }
 
   function markChoices(q, picked, ok) {
-    if (!q || q.k !== "choice") return;
+    if (!q || (q.k !== "choice" && q.k !== "lchoice")) return;
     const right = q.a[0];
     for (const btn of Array.from(els.choices.querySelectorAll(".choice"))) {
       btn.disabled = true;
@@ -1427,6 +1856,7 @@
       const opts = state.custom || {};
       const totalQ = state.list.length;
       const accuracyQ = totalQ ? Math.round((state.correct / totalQ) * 100) : 0;
+      const due = dueList(state.studyLang).length;
 
       els.ovTitle.textContent = cleared ? "Hoàn thành! 🎉" : "Hết lượt 😢";
       els.ovTitle.className = cleared ? "" : "lose";
@@ -1434,7 +1864,10 @@
         `Điểm: <b>${state.score}</b>`,
         `Đúng ${state.correct}/${totalQ} câu (${accuracyQ}%) · chuỗi cao nhất ×${state.maxCombo}`,
         cleared ? "Bạn đã luyện xong bộ từ này." : "Còn 0 mạng — thử lại nhé.",
-      ].join("<br>");
+        due ? `⏰ Còn <b>${due}</b> mục đến hạn ôn hôm nay.` : "",
+      ]
+        .filter(Boolean)
+        .join("<br>");
 
       els.ovActions.innerHTML = "";
       addOverlayBtn("↺ Luyện lại", "primary-btn", () => {
@@ -1443,7 +1876,13 @@
         if (again.length) startCustom(again, opts);
         else backFromPlay();
       });
-      addOverlayBtn("← Về phần Học", "ghost-btn", () => {
+      if (due) {
+        addOverlayBtn(`🔁 Ôn tiếp (${due})`, "ghost-btn", () => {
+          els.overlay.classList.add("hidden");
+          startReview(false, state.customBack);
+        });
+      }
+      addOverlayBtn(opts.back === "menu" ? "← Chọn màn" : "← Về phần Học", "ghost-btn", () => {
         els.overlay.classList.add("hidden");
         backFromPlay();
       });
@@ -1533,9 +1972,17 @@
       if (back === "study") {
         showScreen("study");
         renderTopics();
+        renderSaveCards();
+      } else if (back === "menu") {
+        showScreen("menu");
+        renderLevels();
+        renderStages();
+        updateStartLabel();
+        renderSaveCards();
       } else {
         showScreen("lesson");
         renderLesson();
+        renderSaveCards();
       }
       return;
     }
@@ -1739,6 +2186,11 @@
         seq.played = true;
       };
       el.src = ZH_TTS_URL + encodeURIComponent(text);
+      try {
+        el.playbackRate = slowOn() ? 0.7 : 1;
+      } catch (_) {
+        /* trình duyệt cũ */
+      }
       seq.timer = window.setTimeout(retry, 6000);
       const played = el.play();
       if (played && typeof played.catch === "function") played.catch(retry);
@@ -1788,7 +2240,7 @@
       const picked = voice || voiceFor(lang);
       if (picked) utter.voice = picked;
       utter.lang = picked ? picked.lang : lang || "en-US";
-      utter.rate = 0.92;
+      utter.rate = slowOn() ? 0.62 : 0.92;
       synth.speak(utter);
     } catch (_) {
       /* trình duyệt không hỗ trợ đọc tiếng */
@@ -1825,6 +2277,8 @@
   }
 
   /* ---------- Nút âm thanh ---------- */
+  const slowOn = () => readLocal(KEY_SLOW) === "1";
+
   function paintSound() {
     if (!els.soundBtn || !window.Sound) return;
     const muted = Boolean(window.Sound.isMuted && window.Sound.isMuted());
@@ -1833,11 +2287,106 @@
     els.soundBtn.setAttribute("aria-pressed", muted ? "false" : "true");
   }
 
+  /* ---------- Nút dấu thanh + tốc độ đọc ---------- */
+  function paintStrict() {
+    const on = strictToneOn();
+    const label = on ? "🎯 Dấu thanh: Bật" : "🎯 Dấu thanh: Tắt";
+    // menu: hiện khi đang chơi tiếng Trung
+    if (els.strictBtn) {
+      els.strictBtn.classList.toggle("hidden", !(state.pack && state.pack.voice === "zh-CN"));
+      els.strictBtn.setAttribute("aria-pressed", on ? "true" : "false");
+      els.strictBtn.textContent = label;
+    }
+    // màn học: hiện khi đang học tiếng Trung
+    if (els.lessonStrict) {
+      els.lessonStrict.classList.toggle("hidden", state.studyLang !== "zh");
+      els.lessonStrict.setAttribute("aria-pressed", on ? "true" : "false");
+      els.lessonStrict.textContent = label;
+    }
+  }
+
+  function toggleStrict() {
+    writeLocal(KEY_STRICT, strictToneOn() ? "0" : "1");
+    paintStrict();
+    play("click");
+  }
+
+  /** Nút “ôn đến hạn” trong màn học (chỉ hiện khi có mục đến hạn) */
+  function paintLessonExtra() {
+    if (!els.lessonReview) return;
+    const n = dueList(state.studyLang).length;
+    els.lessonReview.classList.toggle("hidden", n === 0);
+    els.lessonReview.textContent = `🔁 Ôn đến hạn (${n})`;
+  }
+
+  function paintSlow() {
+    if (!els.slowBtn) return;
+    const on = slowOn();
+    els.slowBtn.setAttribute("aria-pressed", on ? "true" : "false");
+    els.slowBtn.textContent = on ? "🐢 0.7x" : "🐇 1x";
+  }
+
+  /* ---------- Xuất / nhập tiến độ ---------- */
+  const EXPORT_KEYS = [
+    KEY_LANG,
+    KEY_PROGRESS,
+    KEY_LAST,
+    KEY_LEARNED,
+    KEY_STUDY,
+    KEY_STATS,
+    KEY_WRONG,
+    KEY_DAILY,
+    KEY_STRICT,
+    KEY_SLOW,
+  ];
+
+  function exportProgress() {
+    const payload = { app: "reflex", version: 2, exportedAt: new Date().toISOString(), data: {} };
+    EXPORT_KEYS.forEach((key) => {
+      const value = readLocal(key);
+      if (value) payload.data[key] = value;
+    });
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `phan-xa-tien-do-${dayKey()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 3000);
+  }
+
+  function importProgress(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result || "{}"));
+        const payload = parsed && parsed.data && typeof parsed.data === "object" ? parsed.data : parsed;
+        let count = 0;
+        EXPORT_KEYS.forEach((key) => {
+          const value = payload[key];
+          if (typeof value === "string" && value) {
+            writeLocal(key, value);
+            count += 1;
+          }
+        });
+        if (!count) throw new Error("empty");
+        window.alert(`Đã nhập ${count} mục tiến độ. Tải lại trang để áp dụng.`);
+        window.location.reload();
+      } catch (_) {
+        window.alert("Tệp không hợp lệ — cần đúng tệp JSON xuất từ game này.");
+      }
+    };
+    reader.readAsText(file);
+  }
+
   /* ---------- Gắn sự kiện ---------- */
   function wire() {
     els.form.addEventListener("submit", (event) => {
       event.preventDefault();
-      if (state.locked || !state.current || state.current.k === "choice") return;
+      if (state.locked || !state.current) return;
+      if (state.current.k === "choice" || state.current.k === "lchoice") return;
       judge(els.input.value);
     });
 
@@ -1854,12 +2403,64 @@
 
     els.quitBtn.addEventListener("click", () => backFromPlay());
 
+    if (els.strictBtn) {
+      els.strictBtn.addEventListener("click", toggleStrict);
+    }
+
+    if (els.lessonStrict) {
+      els.lessonStrict.addEventListener("click", toggleStrict);
+    }
+
+    if (els.lessonReview) {
+      els.lessonReview.addEventListener("click", () => {
+        play("click");
+        startReview(false, "lesson");
+      });
+    }
+
+    if (els.slowBtn) {
+      els.slowBtn.addEventListener("click", () => {
+        writeLocal(KEY_SLOW, slowOn() ? "0" : "1");
+        paintSlow();
+        play("click");
+        const q = state.current;
+        if (q && !els.play.classList.contains("hidden")) speak(q.say || q.q, null, speakFallback(q));
+      });
+    }
+
+    if (els.survivalBtn) {
+      els.survivalBtn.addEventListener("click", () => {
+        play("click");
+        startSurvival();
+      });
+    }
+
+    if (els.exportBtn) {
+      els.exportBtn.addEventListener("click", () => {
+        play("click");
+        exportProgress();
+      });
+    }
+
+    if (els.importBtn && els.importFile) {
+      els.importBtn.addEventListener("click", () => {
+        play("click");
+        els.importFile.click();
+      });
+      els.importFile.addEventListener("change", () => {
+        const file = els.importFile.files && els.importFile.files[0];
+        if (file) importProgress(file);
+        els.importFile.value = "";
+      });
+    }
+
     els.resetBtn.addEventListener("click", () => {
       const sure = window.confirm("Xoá toàn bộ tiến độ và kỷ lục của game này?");
       if (!sure) return;
       writeJson(KEY_PROGRESS, {});
       writeJson(KEY_STATS, {});
       writeJson(KEY_LAST, {});
+      writeJson(KEY_WRONG, {});
       state.stageIdx = 0;
       renderLevels();
       renderStages();
@@ -2061,7 +2662,18 @@
     renderSaveCards();
     wire();
     paintSound();
+    paintStrict();
+    paintSlow();
     showScreen("menu");
+
+    /* PWA: cài được lên màn hình chính + dùng offline (bỏ qua khi mở bằng file://) */
+    if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0) {
+      try {
+        navigator.serviceWorker.register("../sw.js").catch(() => {});
+      } catch (_) {
+        /* trình duyệt không hỗ trợ */
+      }
+    }
 
     /* Giọng đọc máy: danh sách có thể nạp bất đồng bộ */
     if ("speechSynthesis" in window) {

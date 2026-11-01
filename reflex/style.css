@@ -403,6 +403,17 @@ body {
   color: var(--muted);
 }
 
+.ghost-btn.tiny[aria-pressed="true"] {
+  color: var(--accent);
+  border-color: rgba(34, 211, 238, 0.5);
+  background: rgba(34, 211, 238, 0.1);
+}
+
+.ghost-btn.tiny[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .icon-btn {
   padding: 0.6rem 0.75rem;
   line-height: 1;
@@ -418,6 +429,8 @@ body {
 
 .menu-foot {
   display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
   justify-content: center;
   margin-top: 0.6rem;
 }
@@ -1091,6 +1104,23 @@ kbd {
   transition: filter 0.15s ease, opacity 0.15s ease;
 }
 
+/* nhãn “đến hạn ôn” của lịch lặp lại ngắt quãng */
+.card-due {
+  align-self: flex-start;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--warn);
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  border-radius: 999px;
+  padding: 0.05rem 0.45rem;
+  margin-top: 0.1rem;
+}
+
+.card.due {
+  border-color: rgba(251, 191, 36, 0.45);
+}
+
 .cards.hide-vi .card:not(.revealed) .card-vi {
   filter: blur(6px);
   opacity: 0.6;
@@ -1187,6 +1217,13 @@ kbd {
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
+}
+
+.lesson-extra {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem;
 }
 
 /* ---------- Điện thoại ---------- */

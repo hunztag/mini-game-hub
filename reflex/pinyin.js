@@ -70,5 +70,10 @@ window.ReflexPinyin = (() => {
 
   const hasCjk = (text) => CJK_RE.test(String(text == null ? "" : text));
 
-  return { toneless, answers, mask, hasCjk };
+  /* Bản không có cờ /g để test() không bị dính lastIndex */
+  const TONE_TEST_RE = new RegExp(TONE_RE.source);
+  /** Chuỗi có dấu thanh pinyin hay không (để biết khi nào cần bắt lỗi dấu) */
+  const hasTone = (text) => TONE_TEST_RE.test(String(text == null ? "" : text));
+
+  return { toneless, answers, mask, hasCjk, hasTone };
 })();

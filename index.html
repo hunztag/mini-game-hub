@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Mini Game Hub</title>
   <meta name="description" content="Bộ sưu tập mini game chạy trên trình duyệt: Snake, Cờ Caro, Cờ Vua, Cờ Tướng và nhiều game khác." />
+  <meta name="theme-color" content="#0b1220" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="assets/hub.css" />
 </head>
 <body>
@@ -32,5 +35,13 @@
 
   <script src="assets/games.js"></script>
   <script src="assets/hub.js"></script>
+  <script>
+    /* PWA: cài lên màn hình chính + chơi offline (bỏ qua khi mở bằng file://) */
+    if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0) {
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("sw.js").catch(function () {});
+      });
+    }
+  </script>
 </body>
 </html>

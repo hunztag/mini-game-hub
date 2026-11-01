@@ -1,0 +1,36 @@
+{
+  "name": "Mini Game Hub · Phản Xạ Ngoại Ngữ",
+  "short_name": "Game Hub",
+  "description": "Bộ mini game học ngoại ngữ: phản xạ từ vựng, cờ vua, cờ tướng, caro, rắn săn mồi.",
+  "lang": "vi",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0b1220",
+  "theme_color": "#0b1220",
+  "icons": [
+    {
+      "src": "./assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Phản xạ ngoại ngữ",
+      "url": "./reflex/index.html"
+    },
+    {
+      "name": "Cờ vua",
+      "url": "./chess/index.html"
+    }
+  ]
+}

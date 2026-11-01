@@ -3,7 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0b1220" />
   <title>Phản Xạ Ngoại Ngữ ⚡</title>
+  <link rel="manifest" href="../manifest.webmanifest" />
+  <link rel="icon" href="../assets/icon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="../assets/shared.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -44,6 +47,11 @@
       </p>
 
       <div class="menu-foot">
+        <button id="survival-btn" class="ghost-btn tiny" type="button">♾️ Sinh tồn · câu hỏi mới mỗi lượt</button>
+        <button id="strict-btn" class="ghost-btn tiny hidden" type="button" aria-pressed="true">🎯 Dấu thanh: Bật</button>
+        <button id="export-btn" class="ghost-btn tiny" type="button">⬇ Xuất tiến độ</button>
+        <button id="import-btn" class="ghost-btn tiny" type="button">⬆ Nhập tiến độ</button>
+        <input id="import-file" class="hidden" type="file" accept="application/json,.json" aria-hidden="true" tabindex="-1" />
         <button id="reset-progress-btn" class="ghost-btn tiny">🗑 Xoá tiến độ</button>
       </div>
     </section>
@@ -55,7 +63,8 @@
       <p class="section-label">Chọn chủ đề để học</p>
       <div class="topics" id="topics"></div>
       <p class="menu-note" id="study-sum">
-        Mỗi chủ đề có 3 cấp độ: Cơ bản · Trung cấp · Nâng cao. Học xong có thể bấm “Luyện chủ đề này”.
+        Mỗi chủ đề có 3 cấp độ: Cơ bản · Trung cấp · Nâng cao. Từ đã thuộc sẽ được lên lịch ôn lại
+        (ngày 1 → 3 → 7 → 21 → 45 → 90) — bấm “🔁 Ôn hôm nay” để học đúng lúc cần.
       </p>
       <div class="menu-foot">
         <button id="study-random" class="ghost-btn tiny" type="button">🔀 Luyện tổng hợp 12 chủ đề</button>
@@ -86,7 +95,11 @@
 
       <div class="lesson-actions">
         <button id="study-practice" class="primary-btn big" type="button">🎯 Luyện chủ đề này</button>
-        <button id="study-mark-all" class="ghost-btn tiny hidden" type="button">↺ Bỏ tích cả cấp độ</button>
+        <div class="lesson-extra">
+          <button id="lesson-review" class="ghost-btn tiny hidden" type="button">🔁 Ôn đến hạn</button>
+          <button id="lesson-strict" class="ghost-btn tiny hidden" type="button" aria-pressed="true">🎯 Dấu thanh: Bật</button>
+          <button id="study-mark-all" class="ghost-btn tiny hidden" type="button">↺ Bỏ tích cả cấp độ</button>
+        </div>
       </div>
       <p class="menu-note" id="study-note">Bấm thẻ để ẩn/hiện nghĩa · 🔊 nghe phát âm · ✓ phải <b>gõ lại đúng từ</b> rồi mới tích được đã thuộc</p>
     </section>
@@ -113,6 +126,7 @@
         <p class="prompt-hint hidden" id="prompt-hint"></p>
         <div class="choices hidden" id="choices" role="group" aria-label="Các lựa chọn"></div>
         <button id="speak-btn" class="ghost-btn sm hidden" type="button">🔊 Nghe lại</button>
+        <button id="slow-btn" class="ghost-btn sm" type="button" aria-pressed="false" title="Đọc chậm hơn">🐇 1x</button>
       </div>
 
       <form class="answer-row" id="answer-form" autocomplete="off">
@@ -130,8 +144,8 @@
 
       <p class="hint">
         <kbd>Enter</kbd> gửi câu trả lời · <kbd>Tab</kbd> tới nút Gợi ý · <kbd>Esc</kbd> về chọn màn<br />
-        Không cần viết hoa, không cần dấu chấm cuối câu<br />
-        🇨🇳 Tiếng Trung: gõ <b>chữ Hán</b> hoặc <b>pinyin</b> — có dấu (nǐ hǎo) hay không dấu (ni hao) đều được
+        Không cần viết hoa, không cần dấu chấm cuối câu · câu sai sẽ được hỏi lại ở cuối lượt<br />
+        🇨🇳 Tiếng Trung: gõ <b>chữ Hán</b> hoặc <b>pinyin</b> — bật “🎯 Dấu thanh” để bắt buộc đúng dấu (mǎ ≠ mà)
       </p>
     </section>
 
