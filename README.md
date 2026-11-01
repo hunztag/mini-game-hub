@@ -12,7 +12,7 @@ Mở `web-game/index.html` bằng trình duyệt là chơi được ngay.
 | ⚫ Cờ caro | ✅ Sẵn sàng | Bàn 15×15, đấu máy (3 độ khó), 2 người, **online** (mã phòng) |
 | ♟️ Cờ vua | ✅ Sẵn sàng | Bàn 8×8, đủ luật (phong cấp, nhập thành, bắt tốt qua đường), đấu máy (3 độ khó), 2 người, **online** |
 | 🏮 Cờ tướng | ✅ Sẵn sàng | Bàn 9×10 có sông và cung, đấu máy (3 độ khó), 2 người, **online** |
-| ⚡ Phản Xạ Ngoại Ngữ | ✅ Sẵn sàng | 2 chế độ: **Học** 12 chủ đề · 336 từ/câu (Anh **và** Trung) và **Chơi** phản xạ 3 cấp độ × 3 màn, 7 kiểu câu hỏi; 🇨🇳 hiện chữ Hán + pinyin, gõ pinyin có dấu hay không dấu đều đúng |
+| ⚡ Phản Xạ Ngoại Ngữ | ✅ Sẵn sàng | 2 chế độ: **Học** 12 chủ đề · 336 từ/câu (Anh **và** Trung) và **Chơi** phản xạ 3 cấp độ × 3 màn, 10 kiểu câu hỏi; 🇨🇳 hiện chữ Hán + pinyin, gõ pinyin có dấu hay không dấu đều đúng, **bắt buộc đúng dấu thanh**, **ôn tập ngắt quãng (SRS)**, **kho từ hay sai**, **bài luyện âm dễ lẫn / 4 thanh điệu**, **sinh tồn**, **xuất–nhập tiến độ**, **cài như app (PWA)** |
 | 🔢 2048 | 🚧 Sắp có | — |
 | 🃏 Lật thẻ | 🚧 Sắp có | — |
 
@@ -29,8 +29,11 @@ Cả 3 game cờ đều có **giới hạn thời gian mỗi lượt** (`30s` / 
 ```
 web-game/
 ├── index.html          # Trang chủ chọn game
+├── manifest.webmanifest # ⭐ Khai báo PWA (cài như app, chơi offline)
+├── sw.js               # ⭐ Service worker: cache vỏ game, network-first
 ├── README.md
 ├── assets/             # Tài nguyên dùng chung cho mọi game
+│   ├── icon.svg        # Icon app / favicon
 │   ├── hub.css         # Giao diện trang chủ
 │   ├── hub.js          # Render danh sách game từ games.js
 │   ├── games.js        # ⭐ Danh sách game (sửa file này để thêm game)
@@ -68,6 +71,7 @@ web-game/
 │   ├── data.js         # ⭐ Nội dung chơi: ngôn ngữ, cấp độ, màn, câu hỏi
 │   ├── lessons.js      # ⭐ Nội dung học: 12 chủ đề × 3 cấp độ (336 từ/câu)
 │   ├── lessons-zh.js   # 🇨🇳 Nội dung học tiếng Trung: 12 chủ đề × 3 cấp độ (336 mục)
+│   ├── drills-zh.js    # 🎧 Cặp âm dễ lẫn (z/zh, s/sh, n/l…) cho bài luyện nghe
 │   ├── pinyin.js       # Tiện ích pinyin: bỏ dấu, chấp nhận ü/v, mặt nạ gợi ý
 │   └── script.js       # Luật chơi: đồng hồ, tính điểm, mạng, mở khoá màn, chế độ Học
 └── server/             # Server Node.js: web tĩnh + relay online (tuỳ chọn)
@@ -205,11 +209,16 @@ Hiện từ / câu bằng **tiếng Việt**, bạn phải gõ đáp án bằng 
 | `question` | Câu hỏi ngoại ngữ | Gõ câu trả lời |
 | `open` | Câu hỏi mở | Gõ câu tự do (≥ 2 từ) — luôn được tính đúng |
 | `choice` | Câu hỏi + 4 lựa chọn | Bấm đáp án đúng |
+| `lchoice` | Phát âm 🔊 + 4 nghĩa tiếng Việt (không nhìn thấy chữ) | Nghe rồi chọn nghĩa |
+| `pair` | Phát âm 🔊 + 2 pinyin dễ lẫn (`z/zh`, `s/sh`, `n/l`…) | Nghe rồi chọn pinyin đúng |
+| `tone` | Phát âm 🔊 + 4 pinyin cùng âm tiết, khác dấu thanh | Nghe rồi chọn đúng thanh |
 | `listen` | Phát âm bằng 🔊 (tiếng Anh: giọng máy · tiếng Trung: audio tiếng Trung thật) | Nghe rồi gõ lại |
 
 **Phím tắt**: `Enter` gửi câu trả lời · `Tab` tới nút Gợi ý · `Esc` về chọn màn (trong phần Học: `Esc` lùi từng bước Chủ đề → Danh sách chủ đề → menu).
 
-**localStorage**: `reflex-progress` (điểm kỷ lục + màn đã qua), `reflex-lang` (ngôn ngữ đang chọn), `reflex-last` (vị trí chơi gần nhất), `reflex-learned` (các mục đã thuộc), `reflex-study` (chủ đề / cấp độ / ẩn nghĩa gần nhất), `reflex-stats` (số câu đã trả lời / số câu đúng theo từng ngôn ngữ).
+**localStorage**: `reflex-progress` (điểm kỷ lục + màn đã qua), `reflex-lang` (ngôn ngữ đang chọn), `reflex-last` (vị trí chơi gần nhất), `reflex-learned` (`{due, reps, ease, lapses}` của từng mục đã thuộc), `reflex-study` (chủ đề / cấp độ / ẩn nghĩa gần nhất), `reflex-stats` (số câu đã trả lời / số câu đúng theo từng ngôn ngữ), `reflex-wrong` (số lần sai của từng mục), `reflex-daily` (`{n, ok}` số câu mỗi ngày), `reflex-strict` (bắt buộc đúng dấu thanh), `reflex-slow` (tốc độ đọc 0.7x).
+
+**♾️ Sinh tồn**: nút ở cuối menu Chơi tạo ngay một lượt **30 câu ngẫu nhiên trên toàn bộ kho từ** của ngôn ngữ đang chọn (12s/câu, đủ 10 kiểu câu) — câu sai được hỏi lại ở cuối lượt, hết 3 mạng là dừng.
 
 ### 💾 Lưu tiến độ trên máy
 
@@ -221,7 +230,7 @@ Mọi tiến độ nằm trong `localStorage` của trình duyệt — đóng ta
   - Dòng phụ: số câu đã trả lời, **% đúng**, tổng điểm kỷ lục.
   - Nút **▶ Chơi tiếp** mở đúng cấp độ + màn đang dở; nút **📚 Học tiếp** quay lại đúng chủ đề/cấp độ đang học.
 - **Thẻ 📍 Đang học** ở tab Học ghi nhớ chủ đề + cấp độ gần nhất của từng ngôn ngữ, kèm số mục đã thuộc của cấp độ đó và của cả ngôn ngữ.
-- **🗑 Xoá tiến độ** xoá sạch `reflex-progress`, `reflex-stats`, `reflex-last` (không xoá từ đã thuộc ở tab Học).
+- **🗑 Xoá tiến độ** xoá sạch `reflex-progress`, `reflex-stats`, `reflex-last`, `reflex-daily` và `reflex-wrong` (không xoá từ đã thuộc ở tab Học).
 
 ### 📚 Học từ vựng theo chủ đề
 
@@ -261,6 +270,40 @@ Máy tính thường **không cài giọng `zh-CN`** cho `speechSynthesis`, nên
   1. đọc **cả cụm** → 2. đọc từng **mẩu 2 chữ** → 3. đọc từng **chữ**.
 - Nếu mạng lỗi / bị chặn hoàn toàn: đọc **pinyin** bằng giọng có sẵn để vẫn nghe được (chất lượng kém hơn).
 - Bấm 🔇 sẽ tắt toàn bộ âm thanh, gồm cả audio tiếng Trung; rời màn chơi sẽ dừng audio đang phát.
+
+---
+
+### 🔁 Ôn tập ngắt quãng (SRS) — học đúng lúc cần
+
+Mỗi mục đã tích `✓` được lên **lịch ôn riêng**: đúng thì giãn ra theo thang `1 → 3 → 7 → 21 → 45 → 90` ngày, sai thì quay lại bước ngắn hơn (dữ liệu lưu trong `reflex-learned`).
+
+- **⏰ đến hạn ôn**: thẻ từ nào tới lịch sẽ có nhãn nhắc; màn Học có nút **🔁 Ôn hôm nay (N)** và **🔁 Ôn đến hạn (N)** — chỉ hiện khi thực sự có mục cần ôn.
+- Điểm cuối lượt có thêm nút **🔁 Ôn tiếp (N)** để làm luôn phần còn lại.
+- **⚠️ Từ hay sai (N)**: mọi câu trả lời sai được ghi vào `reflex-wrong`; nút này tạo ngay một lượt ôn **riêng những từ hay sai** (không có câu nghe, thời gian 14s/câu).
+- **Câu sai trong lượt được hỏi lại ở cuối lượt** — buộc phải gặp lại cho tới khi đúng (mỗi câu một lần, tối đa 90 câu/lượt).
+- **🔥 Chuỗi ngày học** + mục tiêu **20 câu/ngày** hiện ngay trên thẻ tiến độ; **📅 bản đồ nhiệt 28 ngày** (ô càng sáng = càng nhiều câu) và **báo cáo tuần**: tổng câu, % đúng, số ngày có học.
+- Nhãn trình độ tham khảo **HSK 1–5** (tiếng Trung) và **CEFR A1–C1** (tiếng Anh) cho từng chủ đề.
+
+### 🎧 Bài luyện nghe dành cho tiếng Trung
+
+Ở tab Học khi đang chọn 🇨🇳 **中文** có thêm 2 nút:
+
+- **🎧 Nghe âm dễ lẫn** — nghe một từ rồi chọn đúng pinyin trong cặp dễ nhầm: `z/zh`, `c/ch`, `s/sh`, `n/l`, `f/h`, `j/q/x`, `b/p`, `d/t`, `g/k` (28 câu, dữ liệu ở `reflex/drills-zh.js`).
+- **🎯 Luyện 4 thanh điệu** — nghe một âm tiết đơn rồi chọn pinyin đúng dấu (4 lựa chọn được sinh tự động bằng quy tắc đặt dấu của pinyin: có `a` → dấu ở `a`, có `e` → ở `e`, có `ou` → ở `o`, còn lại ở nguyên âm cuối).
+- **🎯 Dấu thanh: Bật/Tắt** — mặc định **bật**: gõ `jia` khi đáp án là `jiā` sẽ bị báo *“Đúng âm tiết nhưng sai dấu thanh”* và **không** được tính đúng; tắt đi thì `jia` được chấp nhận. Cài đặt lưu trong `reflex-strict`.
+- **🐢 0.7x** — đọc chậm lại (audio tiếng Trung đặt `playbackRate = 0.7`, giọng máy `rate` giảm theo), lưu trong `reflex-slow`.
+
+### 💾 Xuất / nhập tiến độ
+
+Menu Chơi có **⬇ Xuất tiến độ** → tải file `phan-xa-tien-do-YYYY-MM-DD.json` (`{app, version: 2, exportedAt, data}`) chứa toàn bộ khoá tiến độ ở trên; **⬆ Nhập tiến độ** đọc lại file đó (hợp nhất vào dữ liệu hiện có) để **sao lưu hoặc chuyển sang máy khác**. Nhập xong tải lại trang để áp dụng.
+
+### 📱 Cài như app (PWA)
+
+`manifest.webmanifest` + `sw.js` + `assets/icon.svg` cho phép **cài game lên màn hình chính** và **mở lại khi mất mạng**:
+
+- Service worker chỉ cache **tài nguyên cùng nguồn** (HTML/CSS/JS/icon) theo kiểu *network-first* — online luôn lấy bản mới, offline mới dùng cache.
+- **Không** can thiệp vào request audio TTS của `dict.youdao.com` để không làm hỏng phát âm.
+- Chỉ đăng ký service worker khi chạy qua `http(s)`; mở bằng `file://` vẫn chơi bình thường (không có cache offline).
 
 ### Thêm chủ đề / từ vựng mới
 

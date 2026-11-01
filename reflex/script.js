@@ -43,6 +43,8 @@
   const DAILY_GOAL = 20; // câu mỗi ngày
   /* Thang giãn cách (ngày) theo số lần nhớ đúng liên tiếp — lặp lại ngắt quãng */
   const SRS_STEPS = [0, 1, 3, 7, 21, 45, 90];
+  /* Các loại câu trả lời bằng cách bấm nút trắc nghiệm */
+  const CHOICE_KINDS = { choice: 1, lchoice: 1, pair: 1, tone: 1 };
 
   /* ---------- Tiện ích ---------- */
   const $ = (id) => document.getElementById(id);
@@ -235,8 +237,61 @@
     return out.join("");
   }
 
+  /** Bỏ dấu thanh nhưng GIỮ ü (ǚ → ü) để còn ghép lại dấu khác */
+  function plainSyllable(text) {
+    return String(text == null ? "" : text)
+      .replace(/[\u01d5-\u01dc]/g, "\u00fc")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/v/g, "\u00fc")
+      .replace(/[^a-z\u00fc]/g, "");
+  }
+
+  const TONE_MARKS = {
+    a: ["\u0101", "\u00e1", "\u01ce", "\u00e0"],
+    o: ["\u014d", "\u00f3", "\u01d2", "\u00f2"],
+    e: ["\u0113", "\u00e9", "\u011b", "\u00e8"],
+    i: ["\u012b", "\u00ed", "\u01d0", "\u00ec"],
+    u: ["\u016b", "\u00fa", "\u01d4", "\u00f9"],
+    "\u00fc": ["\u01d6", "\u01d8", "\u01da", "\u01dc"],
+  };
+
+  /**
+   * Ghép dấu thanh vào một âm tiết không dấu theo quy tắc đặt dấu của pinyin:
+   * có a → dấu ở a; có e → ở e; có "ou" → ở o; còn lại → nguyên âm cuối.
+   */
+  function applyTone(syllable, tone) {
+    const base = plainSyllable(syllable);
+    const idx = Math.max(1, Math.min(4, Number(tone) || 0));
+    if (!base) return "";
+    let target = -1;
+    if (base.includes("a")) target = base.indexOf("a");
+    else if (base.includes("e")) target = base.indexOf("e");
+    else if (base.includes("ou")) target = base.indexOf("o");
+    else {
+      for (let i = base.length - 1; i >= 0; i -= 1) {
+        if ("iou\u00fc".includes(base[i])) {
+          target = i;
+          break;
+        }
+      }
+    }
+    if (target < 0) return base;
+    const marks = TONE_MARKS[base[target]];
+    if (!marks) return base;
+    return base.slice(0, target) + marks[idx - 1] + base.slice(target + 1);
+  }
+
+  /** Số âm tiết của một chuỗi pinyin = số cụm nguyên âm (wènti → 2, hǎo → 1) */
+  function syllableCount(text) {
+    const groups = plainSyllable(text).match(/[aeiou\u00fc]+/g);
+    return groups ? groups.length : 0;
+  }
+
   /** Chế độ khắt khe dấu thanh: mặc định BẬT cho mọi đáp án là pinyin */
   function strictToneOn() {
+
     const saved = readLocal(KEY_STRICT);
     if (saved === "1") return true;
     if (saved === "0") return false;
@@ -312,6 +367,9 @@
     studyLangs: $("study-langs"),
     topics: $("topics"),
     studyRandom: $("study-random"),
+    studyPairs: $("study-pairs"),
+    studyTones: $("study-tones"),
+    studyHeat: $("study-heat"),
     lesson: $("lesson"),
     lessonBack: $("lesson-back"),
     lessonIcon: $("lesson-icon"),
@@ -617,25 +675,41 @@
     return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
   }
 
-  function bumpDaily() {
+  /** Bảng số câu theo ngày: "YYYY-MM-DD" → { n, ok } (đọc được cả dữ liệu cũ dạng số) */
+  function dailyMap() {
+    const raw = readJson(KEY_DAILY) || {};
+    const out = {};
+    Object.keys(raw).forEach((key) => {
+      const v = raw[key];
+      if (v && typeof v === "object") out[key] = { n: Number(v.n) || 0, ok: Number(v.ok) || 0 };
+      else out[key] = { n: Number(v) || 0, ok: 0 };
+    });
+    return out;
+  }
+
+  function bumpDaily(ok) {
     const all = readJson(KEY_DAILY) || {};
     const key = dayKey();
-    all[key] = (Number(all[key]) || 0) + 1;
+    const prev = all[key];
+    const n = (prev && typeof prev === "object" ? Number(prev.n) || 0 : Number(prev) || 0) + 1;
+    const good = (prev && typeof prev === "object" ? Number(prev.ok) || 0 : 0) + (ok ? 1 : 0);
+    all[key] = { n, ok: good };
     const keys = Object.keys(all).sort();
     while (keys.length > 180) delete all[keys.shift()];
     writeJson(KEY_DAILY, all);
   }
 
   function todayCount() {
-    return Number((readJson(KEY_DAILY) || {})[dayKey()]) || 0;
+    const today = dailyMap()[dayKey()];
+    return today ? today.n : 0;
   }
 
   function dayStreak() {
-    const all = readJson(KEY_DAILY) || {};
+    const all = dailyMap();
     const d = new Date();
-    if (!Number(all[dayKey(d)])) d.setDate(d.getDate() - 1);
+    if (!(all[dayKey(d)] || {}).n) d.setDate(d.getDate() - 1);
     let n = 0;
-    while (Number(all[dayKey(d)])) {
+    while ((all[dayKey(d)] || {}).n) {
       n += 1;
       d.setDate(d.getDate() - 1);
     }
@@ -656,7 +730,7 @@
 
   /** Ghi nhận mỗi câu trả lời: lịch ôn + từ hay sai + chuỗi ngày */
   function recordAnswer(ok) {
-    bumpDaily();
+    bumpDaily(ok);
     const q = state.current;
     if (!q || !q.item) return;
     const meta = metaOfItem(q.item);
@@ -762,7 +836,52 @@
     }
   }
 
+  /** Bản đồ nhiệt 28 ngày + báo cáo tuần (số câu đã làm mỗi ngày) */
+  function renderHeat() {
+    if (!els.studyHeat) return;
+    const all = dailyMap();
+    const keys = Object.keys(all);
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+
+    const days = [];
+    for (let i = 27; i >= 0; i -= 1) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const key = dayKey(d);
+      const rec = all[key] || { n: 0, ok: 0 };
+      days.push({ key, d, n: rec.n, ok: rec.ok });
+    }
+
+    const week = days.slice(-7);
+    const weekN = week.reduce((s, x) => s + x.n, 0);
+    const weekOk = week.reduce((s, x) => s + x.ok, 0);
+    const weekDays = week.filter((x) => x.n > 0).length;
+    const acc = weekN ? Math.round((weekOk / weekN) * 100) : 0;
+    const level = (n) => (n <= 0 ? 0 : n < 10 ? 1 : n < DAILY_GOAL ? 2 : n < DAILY_GOAL * 2 ? 3 : 4);
+
+    if (!keys.length) {
+      els.studyHeat.classList.add("hidden");
+      return;
+    }
+
+    els.studyHeat.classList.remove("hidden");
+    els.studyHeat.innerHTML = `
+      <div class="heat-head">
+        <span class="save-label">📅 28 ngày qua</span>
+        <b>Tuần này: ${weekN} câu · đúng ${acc}% · ${weekDays}/7 ngày</b>
+      </div>
+      <div class="heat-grid" aria-hidden="true">${days
+        .map(
+          (x) =>
+            `<span class="heat-cell l${level(x.n)}" title="${x.d.toLocaleDateString("vi-VN")} · ${x.n} câu · đúng ${x.ok}"></span>`
+        )
+        .join("")}</div>
+      <p class="save-note">🔥 <b>${dayStreak()}</b> ngày liên tiếp · hôm nay <b>${todayCount()}/${DAILY_GOAL}</b> câu</p>`;
+  }
+
   function renderStudySave() {
+    renderHeat();
     if (!els.studyResume) return;
     const total = studyTotals(state.studyLang);
     const topic = topicById(state.topicId);
@@ -840,6 +959,39 @@
     }
   }
 
+  /** Nhãn trình độ tham khảo cho từng chủ đề (HSK cho tiếng Trung, CEFR cho tiếng Anh) */
+  const TOPIC_LEVELS = {
+    zh: {
+      greeting: "HSK 1",
+      family: "HSK 1",
+      food: "HSK 2",
+      shopping: "HSK 2",
+      school: "HSK 2",
+      travel: "HSK 3",
+      health: "HSK 3",
+      sport: "HSK 3",
+      work: "HSK 4",
+      emotion: "HSK 4",
+      environment: "HSK 4",
+      tech: "HSK 5",
+    },
+    en: {
+      greeting: "A1",
+      family: "A1",
+      school: "A2",
+      food: "A2",
+      shopping: "A2",
+      travel: "B1",
+      health: "B1",
+      sport: "B1",
+      work: "B2",
+      emotion: "B2",
+      environment: "B2",
+      tech: "C1",
+    },
+  };
+  const topicLevelLabel = (langId, topicId) => (TOPIC_LEVELS[langId] || {})[topicId] || "";
+
   function renderTopics() {
     if (!els.topics) return;
     renderStudyLangs();
@@ -861,6 +1013,7 @@
         });
       });
       const pct = total ? Math.round((done / total) * 100) : 0;
+      const tag = topicLevelLabel(state.studyLang, topic.id);
 
       const btn = document.createElement("button");
       btn.type = "button";
@@ -869,7 +1022,7 @@
       btn.innerHTML = `
         <span class="topic-icon">${topic.icon}</span>
         <span class="topic-main">
-          <b>${esc(topic.name)}</b>
+          <b>${esc(topic.name)}${tag ? ` <span class="topic-tag">${esc(tag)}</span>` : ""}</b>
           <span class="topic-meta">${esc(topic.desc)} · ${total} mục</span>
           <span class="topic-bar"><i style="width:${pct}%"></i></span>
         </span>
@@ -1321,6 +1474,102 @@
     });
   }
 
+  /* ---------- Bài luyện nghe riêng cho tiếng Trung ---------- */
+
+  /** 🎧 Nghe âm dễ lẫn: nghe một từ rồi chọn đúng pinyin (z/zh, s/sh, n/l…) */
+  function startPairDrill() {
+    const all = (window.ReflexZhDrills && window.ReflexZhDrills.pairs) || [];
+    if (!all.length) {
+      play("error");
+      window.alert("Chưa có dữ liệu bài luyện âm dễ lẫn.");
+      return;
+    }
+    const picked = shuffle(all.slice()).slice(0, Math.min(12, all.length));
+    const list = picked.map((pair) => {
+      const rightFirst = Math.random() < 0.5;
+      const right = rightFirst ? pair.a : pair.b;
+      const other = rightFirst ? pair.b : pair.a;
+      return {
+        k: "pair",
+        say: right.en,
+        q: `Nghe và chọn pinyin đúng · ${pair.tag}`,
+        tag: pair.tag,
+        o: [right.ipa, other.ipa],
+        a: [right.ipa],
+        hint: "",
+        show: `${right.en} · ${right.ipa} — ${right.vi}`,
+        item: right,
+      };
+    });
+
+    startCustom(list, {
+      title: `🎧 Âm dễ lẫn · ${list.length} câu`,
+      time: 14,
+      items: picked.map((pair) => pair.a),
+      count: list.length,
+      back: "study",
+      again: startPairDrill,
+    });
+  }
+
+  /** 🎯 Luyện 4 thanh điệu: nghe một âm tiết rồi chọn pinyin đúng dấu */
+  function startToneDrill() {
+    const pool = [];
+    studyTopics().forEach((topic) => {
+      topic.levels.forEach((level) => {
+        level.items.forEach((item, index) => {
+          const py = String((item && item.ipa) || "").trim();
+          if (!py || /[\s'’]/.test(py)) return; // bỏ pinyin dính dấu nháy
+          if (syllableCount(py) !== 1) return; // chỉ lấy âm tiết ĐƠN
+          if (!PY.hasTone(py)) return; // phải có dấu thanh
+          pool.push({ topicId: topic.id, levelId: level.id, index, item });
+        });
+      });
+    });
+
+    if (!pool.length) {
+      play("error");
+      window.alert("Chưa có dữ liệu pinyin cho bài luyện thanh điệu.");
+      return;
+    }
+
+    const picked = shuffle(pool.slice()).slice(0, 12);
+    const list = [];
+    for (const row of picked) {
+      const sig = toneSig(row.item.ipa);
+      const tone = Number(sig.charAt(0)) || 0;
+      if (tone < 1 || tone > 4) continue;
+      const base = plainSyllable(row.item.ipa);
+      const variants = [1, 2, 3, 4].map((n) => applyTone(base, n));
+      if (new Set(variants).size < 4) continue;
+      list.push({
+        k: "tone",
+        say: row.item.en,
+        q: "Nghe và chọn pinyin đúng dấu",
+        o: variants,
+        a: [row.item.ipa],
+        hint: "",
+        show: `${row.item.en} · ${row.item.ipa} — ${row.item.vi}`,
+        item: row.item,
+      });
+    }
+
+    if (!list.length) {
+      play("error");
+      window.alert("Chưa đủ dữ liệu để tạo bài luyện thanh điệu.");
+      return;
+    }
+
+    startCustom(list, {
+      title: `🎯 4 thanh điệu · ${list.length} câu`,
+      time: 14,
+      items: picked.map((row) => row.item),
+      count: list.length,
+      back: "study",
+      again: startToneDrill,
+    });
+  }
+
 
   /* ---------- Màn chọn ---------- */
   function renderLang() {
@@ -1570,6 +1819,26 @@
         speak(q.say || q.q, null, speakFallback(q));
         break;
 
+      case "pair":
+        els.promptKind.textContent = "Nghe và chọn pinyin";
+        els.promptText.innerHTML = `<span class="say-icon">🔊</span>Nghe rồi chọn pinyin đúng<br /><small>Cặp âm dễ lẫn: ${esc(
+          q.tag || ""
+        )}</small>`;
+        els.speakBtn.classList.remove("hidden");
+        setHint("", false);
+        renderChoices(q);
+        speak(q.say || q.q, null, speakFallback(q));
+        break;
+
+      case "tone":
+        els.promptKind.textContent = "Nghe và chọn dấu thanh";
+        els.promptText.innerHTML = `<span class="say-icon">🔊</span>Nghe rồi chọn pinyin đúng dấu<br /><small>Chú ý thanh 1 ngang · 2 sắc · 3 hỏi · 4 huyền</small>`;
+        els.speakBtn.classList.remove("hidden");
+        setHint("", false);
+        renderChoices(q);
+        speak(q.say || q.q, null, speakFallback(q));
+        break;
+
       case "sentence":
         els.promptKind.textContent = `Dịch cả câu sang ${target}`;
         els.promptText.textContent = q.q;
@@ -1743,7 +2012,7 @@
   }
 
   function markChoices(q, picked, ok) {
-    if (!q || (q.k !== "choice" && q.k !== "lchoice")) return;
+    if (!q || !CHOICE_KINDS[q.k]) return;
     const right = q.a[0];
     for (const btn of Array.from(els.choices.querySelectorAll(".choice"))) {
       btn.disabled = true;
@@ -1872,6 +2141,10 @@
       els.ovActions.innerHTML = "";
       addOverlayBtn("↺ Luyện lại", "primary-btn", () => {
         els.overlay.classList.add("hidden");
+        if (typeof opts.again === "function") {
+          opts.again();
+          return;
+        }
         const again = buildPractice(opts.items || [], opts.count || 12);
         if (again.length) startCustom(again, opts);
         else backFromPlay();
@@ -2260,9 +2533,10 @@
     // Đang tắt tiếng → không đọc gì cả (audio tiếng Trung cũng tắt theo)
     if (window.Sound && window.Sound.isMuted && window.Sound.isMuted()) return;
 
-    const targetLang = lang || (state.pack && state.pack.voice) || "en-US";
-    const voice = voiceFor(targetLang);
     const cjk = hasCjk(say);
+    // chữ Hán luôn đọc bằng tiếng Trung, kể cả khi đang ở gói tiếng Anh
+    const targetLang = lang || (cjk ? "zh-CN" : (state.pack && state.pack.voice) || "en-US");
+    const voice = voiceFor(targetLang);
 
     stopSpeaking();
 
@@ -2303,6 +2577,10 @@
       els.lessonStrict.setAttribute("aria-pressed", on ? "true" : "false");
       els.lessonStrict.textContent = label;
     }
+    // bài luyện nghe riêng của tiếng Trung
+    const zhStudy = state.studyLang === "zh";
+    if (els.studyPairs) els.studyPairs.classList.toggle("hidden", !zhStudy);
+    if (els.studyTones) els.studyTones.classList.toggle("hidden", !zhStudy);
   }
 
   function toggleStrict() {
@@ -2528,6 +2806,20 @@
       els.studyRandom.addEventListener("click", () => {
         play("click");
         practiceAllTopics();
+      });
+    }
+
+    if (els.studyPairs) {
+      els.studyPairs.addEventListener("click", () => {
+        play("click");
+        startPairDrill();
+      });
+    }
+
+    if (els.studyTones) {
+      els.studyTones.addEventListener("click", () => {
+        play("click");
+        startToneDrill();
       });
     }
 

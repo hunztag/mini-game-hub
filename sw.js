@@ -7,7 +7,7 @@
    • Không can thiệp vào request âm thanh TTS của máy khác nguồn
      (dict.youdao.com…) để khỏi làm hỏng phát âm.
    ============================================================ */
-const CACHE = "game-hub-v2";
+const CACHE = "game-hub-v3";
 
 /* Trang + tài nguyên cần có để mở game khi offline */
 const CORE = [
@@ -25,6 +25,7 @@ const CORE = [
   "./reflex/data.js",
   "./reflex/lessons.js",
   "./reflex/lessons-zh.js",
+  "./reflex/drills-zh.js",
   "./reflex/pinyin.js",
 ];
 
