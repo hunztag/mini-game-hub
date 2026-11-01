@@ -12,7 +12,7 @@
 
      w (word)      dịch một từ            w("con mèo", ["cat"], "🐱")
      s (sentence)  dịch một câu            s("Tôi thích táo.", ["I like apples"])
-     g (gap)       điền vào chỗ trống      g("She ___ to school.", ["goes"], "đi")
+     g (gap)       điền vào chỗ trống      g("She ___ to school.", ["goes"], "đi", "Cô ấy đi học mỗi ngày.")
      qa (question) trả lời câu hỏi ngắn    qa("Trái nghĩa của hot?", ["cold"])
      op (open)     câu hỏi mở, có câu mẫu op("How old are you?", "I am 20 years old.")
      mc (choice)   trắc nghiệm             mc("Từ nào là màu?", ["red","desk"], "red")
@@ -28,7 +28,7 @@ window.ReflexData = (() => {
   /* ---------- Helper viết câu hỏi cho gọn ---------- */
   const w = (q, a, hint) => ({ k: "word", q, a: [].concat(a), hint: hint || "" });
   const s = (q, a, hint) => ({ k: "sentence", q, a: [].concat(a), hint: hint || "" });
-  const g = (q, a, hint) => ({ k: "gap", q, a: [].concat(a), hint: hint || "" });
+  const g = (q, a, hint, vi) => ({ k: "gap", q, a: [].concat(a), hint: hint || "", vi: vi || "" });
   const qa = (q, a, hint) => ({ k: "question", q, a: [].concat(a), hint: hint || "" });
   const op = (q, sample, hint) => ({ k: "open", q, a: [], sample, hint: hint || "" });
   const mc = (q, o, answer, hint) => ({ k: "choice", q, o: [].concat(o), a: [answer], hint: hint || "" });
@@ -43,8 +43,24 @@ window.ReflexData = (() => {
   const zHint = (py, extra) => [PY.mask(py), extra].filter(Boolean).join(" ");
   const zh = (q, chars, py, extra) => ({ k: "word", q, a: zAns(chars, py), show: zShow(chars, py), hint: zHint(py, extra) });
   const zs = (q, chars, py, extra) => ({ k: "sentence", q, a: zAns(chars, py), show: zShow(chars, py), hint: zHint(py, extra) });
-  const zg = (q, chars, py, extra) => ({ k: "gap", q, a: zAns(chars, py), py, show: zShow(chars, py), hint: extra || "" });
-  const zl = (chars, py) => ({ k: "listen", q: chars, say: chars, a: zAns(chars, py), show: zShow(chars, py), hint: "" });
+  const zg = (q, chars, py, extra, vi) => ({
+    k: "gap",
+    q,
+    a: zAns(chars, py),
+    py,
+    vi: vi || "",
+    show: zShow(chars, py),
+    hint: extra || "",
+  });
+  const zl = (chars, py) => ({
+    k: "listen",
+    q: chars,
+    say: chars,
+    sayPinyin: py,
+    a: zAns(chars, py),
+    show: zShow(chars, py),
+    hint: "",
+  });
 
   /* ============================================================
      🇬🇧 TIẾNG ANH
@@ -129,14 +145,14 @@ window.ReflexData = (() => {
           {
             name: "Điền từ còn thiếu",
             questions: [
-              g("She ___ to school every day.", ["goes"], "đi (chia đúng thì hiện tại đơn)"),
-              g("I have lived here ___ 2019.", ["since"], "từ (mốc thời gian)"),
-              g("He is good ___ playing football.", ["at"], "giỏi về việc gì"),
-              g("If it ___ tomorrow, we will stay at home.", ["rains"], "mưa (điều kiện loại 1)"),
-              g("This book is ___ interesting than that one.", ["more"], "so sánh hơn của tính từ dài"),
-              g("They have ___ finished the project.", ["already"], "đã … rồi"),
-              g("I look forward ___ hearing from you.", ["to"], "mong chờ điều gì"),
-              g("She asked me ___ I was tired.", ["if", "whether"], "liệu … có … không"),
+              g("She ___ to school every day.", ["goes"], "đi (chia đúng thì hiện tại đơn)", "Cô ấy đi học mỗi ngày."),
+              g("I have lived here ___ 2019.", ["since"], "từ (mốc thời gian)", "Tôi đã sống ở đây từ năm 2019."),
+              g("He is good ___ playing football.", ["at"], "giỏi về việc gì", "Cậu ấy giỏi chơi bóng đá."),
+              g("If it ___ tomorrow, we will stay at home.", ["rains"], "mưa (điều kiện loại 1)", "Nếu mai trời mưa, chúng tôi sẽ ở nhà."),
+              g("This book is ___ interesting than that one.", ["more"], "so sánh hơn của tính từ dài", "Cuốn sách này thú vị hơn cuốn kia."),
+              g("They have ___ finished the project.", ["already"], "đã … rồi", "Họ đã hoàn thành dự án rồi."),
+              g("I look forward ___ hearing from you.", ["to"], "mong chờ điều gì", "Tôi mong nhận được hồi âm từ bạn."),
+              g("She asked me ___ I was tired.", ["if", "whether"], "liệu … có … không", "Cô ấy hỏi tôi có mệt không."),
             ],
           },
           {
@@ -290,14 +306,14 @@ window.ReflexData = (() => {
           {
             name: "Điền chữ còn thiếu",
             questions: [
-              zg("我以前是老师，现在是___生。", "学", "xué", "học (学生 = học sinh)"),
-              zg("我___北京工作。", "在", "zài", "ở / tại"),
-              zg("他每天___汉语。", "学习", "xuéxí", "học"),
-              zg("这___书很有意思。", "本", "běn", "lượng từ cho sách"),
-              zg("我___喜欢吃苹果。", "很", "hěn", "rất"),
-              zg("昨天我___电影了。", "看", "kàn", "xem (đã xem)"),
-              zg("他___我早点儿回家。", "让", "ràng", "bảo / để"),
-              zg("如果明天下雨，我们___不去。", "就", "jiù", "thì"),
+              zg("我以前是老师，现在是___生。", "学", "xué", "học (学生 = học sinh)", "Trước đây tôi là giáo viên, bây giờ là học sinh."),
+              zg("我___北京工作。", "在", "zài", "ở / tại", "Tôi làm việc ở Bắc Kinh."),
+              zg("他每天___汉语。", "学习", "xuéxí", "học", "Cậu ấy học tiếng Trung mỗi ngày."),
+              zg("这___书很有意思。", "本", "běn", "lượng từ cho sách", "Cuốn sách này rất thú vị."),
+              zg("我___喜欢吃苹果。", "很", "hěn", "rất", "Tôi rất thích ăn táo."),
+              zg("昨天我___电影了。", "看", "kàn", "xem (đã xem)", "Hôm qua tôi đã xem phim."),
+              zg("他___我早点儿回家。", "让", "ràng", "bảo / để", "Cậu ấy bảo tôi về nhà sớm một chút."),
+              zg("如果明天下雨，我们___不去。", "就", "jiù", "thì", "Nếu mai trời mưa, chúng tôi sẽ không đi."),
             ],
           },
           {

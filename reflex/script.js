@@ -227,6 +227,7 @@
     studyList: $("study-list"),
     studyPractice: $("study-practice"),
     studyMarkAll: $("study-mark-all"),
+    studyNote: $("study-note"),
   };
 
   /* ---------- Trạng thái ---------- */
@@ -296,6 +297,23 @@
     if (map[itemKey(topicId, levelId, index)]) return true;
     // dữ liệu cũ (trước khi có nhiều ngôn ngữ) không có tiền tố ngôn ngữ
     return state.studyLang === "en" && !!map[legacyItemKey(topicId, levelId, index)];
+  }
+
+  function setLearned(topicId, levelId, index, on) {
+    const all = learnedMap();
+    const key = itemKey(topicId, levelId, index);
+    const legacy = legacyItemKey(topicId, levelId, index);
+    if (on) all[key] = 1;
+    else {
+      delete all[key];
+      delete all[legacy];
+    }
+    writeJson(KEY_LEARNED, all);
+  }
+
+  /** Đáp án được chấp nhận khi tích "đã thuộc" (tiếng Trung: chữ Hán + pinyin) */
+  function studyAnswers(item) {
+    return hasCjk(item.en) ? [item.en].concat(PY.answers(item.ipa || "")) : [item.en];
   }
 
   function learnedMap() {
@@ -494,6 +512,13 @@
       els.studyHideVi.textContent = state.hideVi ? "👁 Hiện nghĩa" : "🙈 Ẩn nghĩa";
     }
 
+    if (els.studyNote) {
+      const needVoiceHint = state.studyLang === "zh" && !voiceFor("zh-CN");
+      els.studyNote.innerHTML =
+        "Bấm thẻ để ẩn/hiện nghĩa · 🔊 nghe phát âm · ✓ phải <b>gõ lại đúng từ</b> rồi mới tích được đã thuộc" +
+        (needVoiceHint ? "<br />🔊 Máy chưa cài giọng tiếng Trung nên sẽ đọc theo <b>pinyin</b>." : "");
+    }
+
     renderCards();
   }
 
@@ -505,6 +530,10 @@
     const done = learnedCount(topic, level);
     els.studyFill.style.width = (total ? (done / total) * 100 : 0) + "%";
     els.studyCount.textContent = `${done}/${total} đã thuộc`;
+    if (els.studyMarkAll) {
+      els.studyMarkAll.textContent = "↺ Bỏ tích cả cấp độ";
+      els.studyMarkAll.classList.toggle("hidden", done === 0);
+    }
   }
 
   function renderCards() {
@@ -560,25 +589,95 @@
 
       card.querySelector(".card-say").addEventListener("click", (event) => {
         event.stopPropagation();
-        speak(item.en, (studyLangInfo() || {}).voice);
+        speak(item.en, (studyLangInfo() || {}).voice, item.ipa);
       });
 
-      card.querySelector(".card-check").addEventListener("click", (event) => {
+      /* ✓ chỉ tích được khi đã gõ lại đúng pinyin (tiếng Trung) / từ (tiếng Anh) */
+      const checkBtn = card.querySelector(".card-check");
+      const quizLabel = cjk
+        ? "Gõ pinyin (có dấu / không dấu) để tích đã thuộc"
+        : "Gõ lại từ tiếng Anh để tích đã thuộc";
+
+      const closeQuiz = () => {
+        card.classList.remove("quiz-open", "quiz-cjk", "quiz-en");
+        const form = card.querySelector(".card-quiz");
+        if (form) form.remove();
+        const msg = card.querySelector(".card-quiz-msg");
+        if (msg) msg.remove();
+      };
+
+      const openQuiz = () => {
+        const exists = card.querySelector(".card-quiz-input");
+        if (exists) {
+          exists.focus();
+          return;
+        }
+
+        card.classList.add("quiz-open", "revealed", cjk ? "quiz-cjk" : "quiz-en");
+        const form = document.createElement("form");
+        form.className = "card-quiz";
+        form.innerHTML = `
+          <input class="card-quiz-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
+                 placeholder="${cjk ? "Gõ pinyin (có dấu / không dấu)…" : "Gõ lại từ tiếng Anh…"}"
+                 aria-label="${esc(quizLabel)}" />
+          <button class="primary-btn card-quiz-ok" type="submit">Kiểm tra</button>`;
+
+        const msg = document.createElement("p");
+        msg.className = "card-quiz-msg";
+        msg.textContent = quizLabel;
+
+        card.appendChild(form);
+        card.appendChild(msg);
+
+        const input = form.querySelector(".card-quiz-input");
+
+        input.addEventListener("keydown", (event) => {
+          if (event.key !== "Escape") return;
+          event.stopPropagation();
+          closeQuiz();
+        });
+
+        form.addEventListener("submit", (event) => {
+          event.preventDefault();
+          const value = String(input.value || "").trim();
+          if (!value) {
+            input.focus();
+            return;
+          }
+
+          if (studyAnswers(item).some((ans) => matches(value, ans))) {
+            setLearned(topic.id, level.id, i, true);
+            closeQuiz();
+            card.classList.add("learned");
+            checkBtn.setAttribute("aria-pressed", "true");
+            play("click");
+            updateStudyProgress();
+          } else {
+            play("error");
+            msg.className = "card-quiz-msg bad";
+            msg.textContent = cjk ? "❌ Chưa đúng — gõ pinyin của từ này" : "❌ Chưa đúng — gõ lại từ tiếng Anh";
+            input.classList.add("shake");
+            window.setTimeout(() => input.classList.remove("shake"), 340);
+            input.select();
+          }
+        });
+
+        window.setTimeout(() => input.focus(), 30);
+      };
+
+      checkBtn.addEventListener("click", (event) => {
         event.stopPropagation();
         const all = learnedMap();
-        const key = itemKey(topic.id, level.id, i);
-        const now = !isLearned(all, topic.id, level.id, i);
-        if (now) all[key] = 1;
-        else {
-          delete all[key];
-          delete all[legacyItemKey(topic.id, level.id, i)];
+        if (isLearned(all, topic.id, level.id, i)) {
+          // bỏ tích thì không cần gõ lại
+          setLearned(topic.id, level.id, i, false);
+          card.classList.remove("learned");
+          checkBtn.setAttribute("aria-pressed", "false");
+          play("click");
+          updateStudyProgress();
+          return;
         }
-        writeJson(KEY_LEARNED, all);
-
-        card.classList.toggle("learned", now);
-        card.querySelector(".card-check").setAttribute("aria-pressed", now ? "true" : "false");
-        if (now) play("click");
-        updateStudyProgress();
+        openQuiz();
       });
 
       els.studyList.appendChild(card);
@@ -841,8 +940,10 @@
 
     switch (q.k) {
       case "gap":
-        els.promptKind.textContent = "Điền từ còn thiếu";
-        els.promptText.innerHTML = esc(q.q).replace(/_{2,}/g, '<span class="blank">?</span>');
+        els.promptKind.textContent = isZh ? "Điền từ còn thiếu (gõ pinyin)" : "Điền từ còn thiếu";
+        els.promptText.innerHTML =
+          esc(q.q).replace(/_{2,}/g, '<span class="blank">?</span>') +
+          (q.vi ? `<span class="prompt-vi">🇻🇳 ${esc(q.vi)}</span>` : "");
         setHint(q.hint, true);
         break;
 
@@ -853,7 +954,7 @@
         }`;
         els.speakBtn.classList.remove("hidden");
         setHint(q.hint, true);
-        speak(q.say || q.q);
+        speak(q.say || q.q, null, speakFallback(q));
         break;
 
       case "question":
@@ -1268,14 +1369,72 @@
   }
 
   /* ---------- Đọc từ (Text-to-Speech) ---------- */
-  function speak(text, lang) {
+  let voiceCache = [];
+
+  function refreshVoices() {
+    try {
+      voiceCache = window.speechSynthesis.getVoices() || [];
+    } catch (_) {
+      voiceCache = [];
+    }
+  }
+
+  /** Giọng đọc khớp ngôn ngữ; null khi máy chưa cài giọng đó (hay gặp với tiếng Trung) */
+  function voiceFor(lang) {
+    if (!lang) return null;
+    if (!voiceCache.length) refreshVoices();
+    if (!voiceCache.length) return null;
+    const want = String(lang).toLowerCase().replace("_", "-");
+    const base = want.split("-")[0];
+    return (
+      voiceCache.find((v) => String(v.lang || "").toLowerCase().replace("_", "-") === want) ||
+      voiceCache.find((v) => String(v.lang || "").toLowerCase().split(/[-_]/)[0] === base) ||
+      null
+    );
+  }
+
+  /** Pinyin không dấu để đọc tạm khi máy không có giọng tiếng Trung */
+  const plainPinyin = (text) =>
+    String(text == null ? "" : text)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/ü/g, "yu")
+      .replace(/Ü/g, "Yu");
+
+  /** Văn bản dự phòng khi máy thiếu giọng đọc ngôn ngữ đích */
+  function speakFallback(q) {
+    if (!q) return "";
+    const list = Array.isArray(q.a) ? q.a : [];
+    return q.sayPinyin || q.py || list.find((ans) => ans && !hasCjk(ans)) || "";
+  }
+
+  function speak(text, lang, fallback) {
     if (!text || !("speechSynthesis" in window)) return;
     try {
-      window.speechSynthesis.cancel();
-      const utter = new SpeechSynthesisUtterance(String(text));
-      utter.lang = lang || state.pack.voice || "en-US";
+      const synth = window.speechSynthesis;
+      synth.cancel();
+
+      const targetLang = lang || state.pack.voice || "en-US";
+      const voice = voiceFor(targetLang);
+      const say = String(text);
+      let spoken = say;
+      let spokenLang = voice ? voice.lang : targetLang;
+      let useVoice = voice;
+
+      /* Máy không có giọng tiếng Trung → đọc pinyin để vẫn nghe được */
+      if (!voice) {
+        const alt = String(fallback || "").trim();
+        if (hasCjk(say) && alt && !hasCjk(alt)) spoken = plainPinyin(alt);
+        // không có giọng đúng ngôn ngữ đích → dùng giọng mặc định để vẫn phát ra tiếng
+        useVoice = voiceFor("en-US") || voiceCache[0] || null;
+        spokenLang = useVoice ? useVoice.lang : "en-US";
+      }
+
+      const utter = new SpeechSynthesisUtterance(spoken);
+      if (useVoice) utter.voice = useVoice;
+      utter.lang = spokenLang;
       utter.rate = 0.92;
-      window.speechSynthesis.speak(utter);
+      synth.speak(utter);
     } catch (_) {
       /* trình duyệt không hỗ trợ đọc tiếng */
     }
@@ -1301,7 +1460,7 @@
     els.hintBtn.addEventListener("click", useHint);
     els.speakBtn.addEventListener("click", () => {
       const q = state.current;
-      if (q) speak(q.say || q.q);
+      if (q) speak(q.say || q.q, null, speakFallback(q));
     });
 
     els.startBtn.addEventListener("click", () => {
@@ -1399,20 +1558,19 @@
         if (!topic || !level) return;
 
         const map = learnedMap();
-        const allLearned = level.items.every((_, i) => isLearned(map, topic.id, level.id, i));
+        let removed = 0;
         level.items.forEach((_, i) => {
           const key = itemKey(topic.id, level.id, i);
-          if (allLearned) {
-            delete map[key];
-            delete map[legacyItemKey(topic.id, level.id, i)];
-          } else {
-            map[key] = 1;
-          }
+          const legacy = legacyItemKey(topic.id, level.id, i);
+          if (map[key] || map[legacy]) removed += 1;
+          delete map[key];
+          delete map[legacy];
         });
+        if (!removed) return;
+
         writeJson(KEY_LEARNED, map);
-        els.studyMarkAll.textContent = allLearned ? "✓ Đánh dấu đã thuộc tất cả" : "↺ Bỏ đánh dấu tất cả";
-        renderCards();
         play("click");
+        renderLesson();
       });
     }
 
@@ -1433,6 +1591,17 @@
 
     document.addEventListener("keydown", (event) => {
       if (event.key !== "Escape") return;
+
+      // đang gõ pinyin trong thẻ → Esc chỉ đóng ô kiểm tra
+      const quizCard = document.querySelector("#study-list .card.quiz-open");
+      if (quizCard) {
+        quizCard.classList.remove("quiz-open", "quiz-cjk", "quiz-en");
+        const form = quizCard.querySelector(".card-quiz");
+        const msg = quizCard.querySelector(".card-quiz-msg");
+        if (form) form.remove();
+        if (msg) msg.remove();
+        return;
+      }
 
       if (!els.overlay.classList.contains("hidden") || !els.play.classList.contains("hidden")) {
         backFromPlay();
@@ -1502,6 +1671,12 @@
     wire();
     paintSound();
     showScreen("menu");
+
+    /* Giọng đọc máy: danh sách có thể nạp bất đồng bộ */
+    if ("speechSynthesis" in window) {
+      refreshVoices();
+      window.speechSynthesis.onvoiceschanged = refreshVoices;
+    }
   }
 
   if (document.readyState === "loading") {

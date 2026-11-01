@@ -220,9 +220,10 @@ Tab **📚 Học từ vựng** mở thư viện từ vựng song ngữ (ngoại 
 - Thẻ từ hiển thị **chữ ngoại ngữ** (Anh hoặc **chữ Hán**), **phiên âm** (IPA hoặc **pinyin**) và **nghĩa tiếng Việt**.
 - Hai nút **🇬🇧 English / 🇨🇳 中文** ở đầu màn Học để đổi ngôn ngữ; tiến độ, cấp độ đang chọn và từ đã thuộc được ghi nhớ **riêng cho từng ngôn ngữ**.
 - Bấm vào thẻ để **ẩn / hiện nghĩa** từng thẻ; bấm **🙈 Ẩn nghĩa** để ẩn toàn bộ (chế độ tự kiểm tra).
-- **🔊** đọc to từ/câu bằng giọng máy (tiếng Anh dùng `en-US`, tiếng Trung dùng `zh-CN`); **✓** đánh dấu **đã thuộc** (lưu vào `reflex-learned`, thanh tiến độ và % từng chủ đề cập nhật ngay).
+- **🔊** đọc to từ/câu bằng giọng máy (tiếng Anh dùng `en-US`, tiếng Trung dùng `zh-CN`); nếu máy **không cài giọng tiếng Trung**, game tự đọc **pinyin** bằng giọng có sẵn để vẫn nghe được.
+- **✓** chỉ tích **đã thuộc** khi bạn **gõ lại đúng từ**: tiếng Trung là **pinyin** (có dấu hay không dấu, hoặc chữ Hán), tiếng Anh là **chính từ tiếng Anh** — gõ sai thì báo lỗi và chưa tích. Bấm **✓** lần nữa để bỏ tích (không cần gõ).
 - **🔍 Tìm kiếm** theo tiếng Anh, tiếng Việt (không cần dấu), **chữ Hán** hoặc **pinyin** (`mama`, `jiā`, `妈妈` đều tìm được).
-- **✓ Đánh dấu đã thuộc tất cả** / **↺ Bỏ đánh dấu tất cả** cho nhanh.
+- **↺ Bỏ tích cả cấp độ** xoá nhanh các tích đã thuộc của cấp độ đang mở (chỉ hiện khi đã có mục được tích).
 - **🎯 Luyện chủ đề này**: tạo ngay một lượt chơi 12 câu từ đúng cấp độ đang học (20s / 15s / 11s mỗi câu) — câu hỏi tự trộn kiểu *gõ từ*, *gõ câu* và *chọn đáp án*; kết thúc có `↺ Luyện lại` và `← Về phần Học`.
 - **🔀 Luyện tổng hợp 12 chủ đề**: trộn ngẫu nhiên từ vựng của cả 12 chủ đề.
 - Lượt luyện theo chủ đề **không** ảnh hưởng điểm kỷ lục / màn đã mở của chế độ Chơi.
@@ -235,6 +236,7 @@ Chọn 🇨🇳 **中文** ở menu (chế độ Chơi) hoặc ở đầu tab H�
 - Pinyin **có dấu** (`nǐ hǎo`) và **không dấu** (`ni hao`) đều tính đúng; gõ liền không khoảng trắng (`nihao`) cũng đúng.
 - `ü` có thể gõ là `u` hoặc `v` (`nǚ` → `nu` / `nv`).
 - 💡 Gợi ý hiện **mặt nạ pinyin** (`m…`, `j… j…`) kèm ghi chú, không lộ đáp án.
+- Câu **điền từ còn thiếu** hiện thêm **nghĩa tiếng Việt của cả câu** (dòng 🇻🇳) — đáp án vẫn gõ bằng **pinyin**. Tiếng Anh cũng vậy.
 - Sai / hết giờ sẽ hiện đáp án dạng `猫 · māo`.
 - Pinyin được sinh tự động bởi `reflex/pinyin.js` (`ReflexPinyin.answers(pinyin)`), nên không cần khai báo từng biến thể không dấu.
 
@@ -282,7 +284,7 @@ Mỗi câu hỏi dùng một helper cho gọn:
 ```js
 w("con mèo", "neko", "🐱")                 // word
 s("Tôi thích ăn táo.", "ringo ga suki")    // sentence
-g("Watashi wa ___ desu.", "gakusei", "học sinh")  // gap
+g("Watashi wa ___ desu.", "gakusei", "học sinh", "Tôi là học sinh.")  // gap + nghĩa tiếng Việt
 qa("What is your name?", "My name is…")    // question
 op("How old are you?", "I am twenty", "tuổi")     // open
 mc("Từ nào có nghĩa là “nhà”?", ["ie","mizu","hon","sora"], "ie")  // choice
@@ -294,8 +296,8 @@ Riêng **tiếng Trung** có thêm bộ helper chấp nhận cả chữ Hán l�
 ```js
 zh("con mèo", "猫", "māo", "🐱")           // word  → đáp án: 猫 / māo / mao
 zs("Tôi thích ăn táo.", "我喜欢吃苹果。", "Wǒ xǐhuan chī píngguǒ.")  // sentence
-zg("我___北京工作。", "在", "zài", "ở / tại")  // gap
-zl("朋友", "péngyou")                       // listen
+zg("我___北京工作。", "在", "zài", "ở / tại", "Tôi làm việc ở Bắc Kinh.")  // gap + nghĩa câu
+zl("朋友", "péngyou")                       // listen (đọc pinyin khi thiếu giọng zh)
 
 Khi `packs` có từ 2 phần tử trở lên, ô chọn ngôn ngữ **tự xuất hiện** ở menu.
 

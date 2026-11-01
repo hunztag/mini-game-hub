@@ -493,6 +493,16 @@ body {
   color: var(--muted);
 }
 
+/* Nghĩa tiếng Việt của câu điền từ */
+.prompt-text .prompt-vi {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--accent-2);
+}
+
 /* ---------- Trắc nghiệm ---------- */
 .choices {
   display: grid;
@@ -1018,6 +1028,73 @@ kbd {
   color: #04121a;
   background: var(--good);
   border-color: transparent;
+}
+
+/* ---------- Ôn tập: phải gõ lại từ mới tích được "đã thuộc" ---------- */
+.card.quiz-open {
+  flex-wrap: wrap;
+  border-color: rgba(34, 211, 238, 0.55);
+}
+
+.card.quiz-open.quiz-cjk .card-ipa,
+.card.quiz-open.quiz-en .card-en {
+  filter: blur(7px);
+  opacity: 0.5;
+  user-select: none;
+}
+
+.card-quiz {
+  flex: 1 0 100%;
+  display: flex;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+}
+
+.card-quiz-input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 16px; /* tránh iOS tự zoom */
+  padding: 0.42rem 0.6rem;
+  border-radius: 10px;
+  color: var(--text);
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid var(--line);
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.card-quiz-input::placeholder {
+  color: rgba(148, 163, 184, 0.75);
+}
+
+.card-quiz-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.18);
+}
+
+.card-quiz-input.shake {
+  animation: shake 0.3s ease;
+  border-color: var(--bad);
+}
+
+.card-quiz-ok {
+  padding: 0.4rem 0.7rem;
+  font-size: 0.74rem;
+  border-radius: 10px;
+}
+
+.card-quiz-msg {
+  flex: 1 0 100%;
+  margin: 0.15rem 0 0;
+  font-size: 0.68rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.card-quiz-msg.bad {
+  color: var(--bad);
+  font-weight: 700;
 }
 
 .lesson-actions {
