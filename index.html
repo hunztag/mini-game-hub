@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mini Game Hub</title>
+  <meta name="description" content="Bộ sưu tập mini game chạy trên trình duyệt: Snake, Cờ Caro và nhiều game khác." />
+  <link rel="stylesheet" href="assets/hub.css" />
+</head>
+<body>
+  <div class="blob a"></div>
+  <div class="blob b"></div>
+  <div class="blob c"></div>
+
+  <div class="wrap">
+    <header class="hero">
+      <span class="kicker">Mini Game Hub</span>
+      <h1>Chọn game bạn muốn chơi</h1>
+      <p>
+        Tất cả đều chạy trực tiếp trên trình duyệt — không cần cài đặt, không cần
+        mạng sau khi tải xong. Chơi được trên cả máy tính và điện thoại.
+      </p>
+    </header>
+
+    <main class="games" id="games" aria-live="polite"></main>
+
+    <footer class="footer">
+      <p><strong>Thêm game mới:</strong> tạo thư mục trong <code>web-game/</code> rồi khai báo một object trong <code>assets/games.js</code>.</p>
+      <p>Xem <code>README.md</code> để biết cách đưa hub này lên mạng và bật chơi online.</p>
+    </footer>
+  </div>
+
+  <script src="assets/games.js"></script>
+  <script src="assets/hub.js"></script>
+</body>
+</html>

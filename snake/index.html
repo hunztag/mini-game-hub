@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Snake Game 🐍</title>
+  <link rel="stylesheet" href="../assets/shared.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <a class="back-link" href="../index.html">← Chọn game</a>
+  <button id="sound-btn" class="sound-btn" aria-label="Bật/tắt âm thanh" aria-pressed="true" title="Bật/tắt âm thanh (M)">🔊</button>
+
+  <main class="game">
+    <header class="hud">
+      <div class="score-box">
+        <span class="label">Điểm</span>
+        <span id="score" class="value">0</span>
+      </div>
+      <div class="level-box">
+        <h1>Snake</h1>
+        <span id="level-name" class="level-name">Màn 1 · Khởi động</span>
+      </div>
+      <div class="score-box right">
+        <span class="label">Kỷ lục</span>
+        <span id="best" class="value">0</span>
+      </div>
+    </header>
+
+    <div class="progress">
+      <div class="progress-track">
+        <div id="progress-bar" class="progress-bar"></div>
+      </div>
+      <span id="progress-text" class="progress-text">0 / 5</span>
+    </div>
+
+    <div class="board-wrap">
+      <canvas id="board" width="400" height="400"></canvas>
+
+      <div id="overlay" class="overlay">
+        <h2 id="overlay-title">Sẵn sàng?</h2>
+        <p id="overlay-text">Dùng phím mũi tên hoặc WASD để di chơi.</p>
+        <button id="start-btn">Bắt đầu</button>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="pad up" data-dir="up" aria-label="Lên">▲</button>
+      <button class="pad left" data-dir="left" aria-label="Trái">◀</button>
+      <button class="pad down" data-dir="down" aria-label="Xuống">▼</button>
+      <button class="pad right" data-dir="right" aria-label="Phải">▶</button>
+    </div>
+
+    <p class="hint">
+      <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> hoặc <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>
+      — <kbd>Space</kbd> tạm dừng · <kbd>M</kbd> tắt/bật âm thanh
+    </p>
+  </main>
+
+  <script src="../assets/audio.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "mini-game-hub",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Web tĩnh cho Mini Game Hub + relay WebSocket cho cờ caro online",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test:relay": "node _test-relay.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

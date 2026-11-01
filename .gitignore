@@ -1,0 +1,7 @@
+# Phụ thuộc của server relay
+server/node_modules/
+
+# Hệ điều hành
+.DS_Store
+Thumbs.db
+desktop.ini

@@ -1,0 +1,31 @@
+/* ============================================================
+   CSS dùng chung cho mọi mini game
+   ============================================================ */
+
+/* Nút quay lại trang chọn game (góc trên trái) */
+.back-link {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.55rem 1rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+  color: #e2e8f0;
+  border-radius: 999px;
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(8px);
+  transition: transform 0.15s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.back-link:hover {
+  transform: translateX(-2px);
+  border-color: rgba(34, 211, 238, 0.55);
+  color: #22d3ee;
+}

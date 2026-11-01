@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cờ Caro ⚫</title>
+  <link rel="stylesheet" href="../assets/shared.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <a class="back-link" href="../index.html">← Chọn game</a>
+  <button id="sound-btn" class="sound-btn" aria-label="Bật/tắt âm thanh" aria-pressed="true" title="Bật/tắt âm thanh (M)">🔊</button>
+
+  <main class="app">
+    <header class="topbar">
+      <h1>Cờ Caro</h1>
+      <p class="subtitle">5 quân liền nhau là thắng · bàn 15×15</p>
+    </header>
+
+    <section class="panel">
+      <div class="modes" role="group" aria-label="Chế độ chơi">
+        <button class="mode active" data-mode="ai">Đấu với máy</button>
+        <button class="mode" data-mode="pvp">2 người chơi</button>
+        <button class="mode" data-mode="online">🌐 Online</button>
+      </div>
+
+      <div class="difficulty" id="difficulty">
+        <button class="diff" data-diff="easy">Dễ</button>
+        <button class="diff active" data-diff="normal">Thường</button>
+        <button class="diff" data-diff="hard">Khó</button>
+      </div>
+
+      <div class="online-panel hidden" id="online-panel">
+        <div class="online-row">
+          <label class="online-label" for="server-url">Server</label>
+          <input
+            id="server-url"
+            class="online-input"
+            type="text"
+            spellcheck="false"
+            autocomplete="off"
+            placeholder="ws://localhost:8080/ws"
+          />
+        </div>
+
+        <div class="online-row">
+          <button id="create-room-btn" class="primary-btn sm">Tạo phòng</button>
+          <input
+            id="room-input"
+            class="online-input code"
+            type="text"
+            maxlength="5"
+            spellcheck="false"
+            autocomplete="off"
+            placeholder="MÃ PHÒNG"
+            aria-label="Mã phòng"
+          />
+          <button id="join-room-btn" class="ghost-btn sm">Vào phòng</button>
+        </div>
+
+        <div class="online-row">
+          <button id="share-room-btn" class="ghost-btn sm hidden">📋 Copy link mời</button>
+          <button id="leave-room-btn" class="ghost-btn sm hidden">Rời phòng</button>
+        </div>
+
+        <p class="online-status" id="online-status" aria-live="polite">Chưa kết nối.</p>
+      </div>
+    </section>
+
+    <section class="time-bar">
+      <span class="time-label" id="time-label">⏱ Mỗi lượt</span>
+      <div class="time-opts" role="group" aria-labelledby="time-label">
+        <button class="time-btn" data-time="30" title="30 giây mỗi lượt">30s</button>
+        <button class="time-btn" data-time="60" title="60 giây mỗi lượt">60s</button>
+        <button class="time-btn" data-time="120" title="120 giây mỗi lượt">120s</button>
+        <button class="time-btn active" data-time="0" title="Không giới hạn thời gian">Không</button>
+      </div>
+    </section>
+
+    <div class="clock idle" id="clock">
+      <div class="clock-fill" id="clock-fill"></div>
+      <span class="clock-text" id="clock-text">Không giới hạn · chọn 30s / 60s / 120s để bật</span>
+    </div>
+
+    <div class="turn-bar">
+      <div class="player" id="p-black">
+        <span class="stone-preview black"></span>
+        <span class="pname">Đen</span>
+        <span class="pts" id="score-black">0</span>
+      </div>
+
+      <div class="status" id="status">Lượt của Đen</div>
+
+      <div class="player right" id="p-white">
+        <span class="stone-preview white"></span>
+        <span class="pname">Trắng</span>
+        <span class="pts" id="score-white">0</span>
+      </div>
+    </div>
+
+    <div class="board-wrap">
+      <div id="board" class="board" role="grid" aria-label="Bàn cờ caro 15x15"></div>
+      <div id="overlay" class="overlay hidden">
+        <h2 id="overlay-title">Kết thúc</h2>
+        <p id="overlay-text"></p>
+        <button id="overlay-btn" class="primary-btn">Chơi lại</button>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="undo-btn" class="ghost-btn">↶ Hoàn tác</button>
+      <button id="restart-btn" class="ghost-btn">↺ Ván mới</button>
+    </div>
+
+    <p class="hint">
+      Nhấn vào ô để đặt quân · <kbd>U</kbd> hoàn tác · <kbd>R</kbd> ván mới · <kbd>M</kbd> âm thanh<br />
+      Hết thời gian chờ của lượt = thua ván đó
+    </p>
+  </main>
+
+  <script src="../assets/audio.js"></script>
+  <script src="ai.js"></script>
+  <script src="net.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

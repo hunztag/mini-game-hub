@@ -1,0 +1,20 @@
+# Render Blueprint — deploy 1 service duy nhất (web tĩnh + relay WebSocket)
+# Cách dùng: đẩy repo lên GitHub → Render → New + → Blueprint → chọn repo này → Apply.
+#
+# Server chạy trong thư mục server/ nhưng WEB_ROOT trỏ lên gốc repo,
+# nên mở https://<ten-app>.onrender.com/ là vào luôn trang chủ chọn game,
+# và caro online tự kết nối wss://<ten-app>.onrender.com/ws.
+services:
+  - type: web
+    name: mini-game-hub
+    runtime: node
+    plan: free
+    region: singapore
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
