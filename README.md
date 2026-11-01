@@ -12,6 +12,7 @@ Mở `web-game/index.html` bằng trình duyệt là chơi được ngay.
 | ⚫ Cờ caro | ✅ Sẵn sàng | Bàn 15×15, đấu máy (3 độ khó), 2 người, **online** (mã phòng) |
 | ♟️ Cờ vua | ✅ Sẵn sàng | Bàn 8×8, đủ luật (phong cấp, nhập thành, bắt tốt qua đường), đấu máy (3 độ khó), 2 người, **online** |
 | 🏮 Cờ tướng | ✅ Sẵn sàng | Bàn 9×10 có sông và cung, đấu máy (3 độ khó), 2 người, **online** |
+| ⚡ Phản Xạ Ngoại Ngữ | ✅ Sẵn sàng | Đọc tiếng Việt → gõ ngoại ngữ trước khi hết giờ, 3 cấp độ × 3 màn, 7 kiểu câu hỏi, dễ thêm ngôn ngữ mới |
 | 🔢 2048 | 🚧 Sắp có | — |
 | 🃏 Lật thẻ | 🚧 Sắp có | — |
 
@@ -61,6 +62,11 @@ web-game/
 │   ├── style.css
 │   ├── script.js       # Giao diện + điều khiển + online + đồng hồ
 │   └── engine.js       # Luật cờ tướng + AI minimax (alpha-beta)
+├── reflex/             # ⚡ Phản Xạ Ngoại Ngữ
+│   ├── index.html
+│   ├── style.css
+│   ├── data.js         # ⭐ Nội dung: ngôn ngữ, cấp độ, màn, câu hỏi
+│   └── script.js       # Luật chơi: đồng hồ, tính điểm, mạng, mở khoá màn
 └── server/             # Server Node.js: web tĩnh + relay online (tuỳ chọn)
     ├── package.json
     ├── server.js
@@ -174,6 +180,63 @@ Trên điện thoại: dùng các nút mũi tên bên dưới bàn chơi hoặc 
 | `M` | Bật / tắt âm thanh |
 
 Điểm thắng lưu trong `localStorage` (`xiangqi-score`).
+
+## Phản Xạ Ngoại Ngữ — học từ vựng bằng phản xạ
+
+Hiện từ / câu bằng **tiếng Việt**, bạn phải gõ đáp án bằng **ngoại ngữ** trước khi đồng hồ về 0.
+
+- **3 cấp độ**: `Cơ bản` (20s/câu) · `Trung cấp` (15s/câu) · `Nâng cao` (11s/câu).
+- Mỗi cấp có **3 màn × 8 câu**; qua màn mới mở màn tiếp theo (mỗi cấp khoá riêng).
+- **3 mạng** cho mỗi màn. Sai hoặc hết giờ: mất 1 mạng và hiện đáp án đúng. Hết mạng → `Hết lượt 😢`.
+- **Điểm**: 50 điểm cơ bản + tối đa 50 điểm thưởng tốc độ + 10 điểm mỗi câu trong chuỗi (tối đa +50).
+- **💡 Gợi ý**: mở gợi ý của câu, trừ 3 giây (mỗi câu chỉ 1 lần).
+- Không phân biệt hoa/thường, có/không dấu câu; bỏ qua khác biệt `a/an/the` và tha 1 lỗi gõ cho từ dài (≥ 6 ký tự).
+
+**7 kiểu câu hỏi** (khai báo bằng trường `k`):
+
+| `k` | Hiển thị | Cách trả lời |
+|---|---|---|
+| `word` | Từ tiếng Việt | Gõ từ ngoại ngữ |
+| `sentence` | Câu tiếng Việt | Gõ cả câu |
+| `gap` | Câu ngoại ngữ có chỗ trống `___` | Gõ từ còn thiếu (gợi ý luôn hiện) |
+| `question` | Câu hỏi ngoại ngữ | Gõ câu trả lời |
+| `open` | Câu hỏi mở | Gõ câu tự do (≥ 2 từ) — luôn được tính đúng |
+| `choice` | Câu hỏi + 4 lựa chọn | Bấm đáp án đúng |
+| `listen` | Phát âm bằng giọng máy (🔊) | Nghe rồi gõ lại |
+
+**Phím tắt**: `Enter` gửi câu trả lời · `Tab` tới nút Gợi ý · `Esc` về chọn màn.
+
+**localStorage**: `reflex-progress` (điểm kỷ lục + màn đã qua), `reflex-lang` (ngôn ngữ đang chọn), `reflex-last` (vị trí chơi gần nhất).
+
+### Thêm ngôn ngữ mới
+
+Toàn bộ nội dung nằm trong `reflex/data.js` — **không cần sửa `script.js`**. Thêm một object vào mảng `packs`:
+
+```js
+{
+  id: "jp",
+  flag: "🇯🇵",
+  name: "Japanese",
+  targetLabel: "tiếng Nhật",   // ngôn ngữ người chơi phải gõ
+  sourceLabel: "tiếng Việt",   // ngôn ngữ của câu hỏi
+  voice: "ja-JP",              // giọng đọc cho kiểu câu `listen`
+  levels: [ /* basic / medium / hard, mỗi cấp 3 màn × 8 câu */ ],
+}
+```
+
+Mỗi câu hỏi dùng một helper cho gọn:
+
+```js
+w("con mèo", "neko", "🐱")                 // word
+s("Tôi thích ăn táo.", "ringo ga suki")    // sentence
+g("Watashi wa ___ desu.", "gakusei", "học sinh")  // gap
+qa("What is your name?", "My name is…")    // question
+op("How old are you?", "I am twenty", "tuổi")     // open
+mc("Từ nào có nghĩa là “nhà”?", ["ie","mizu","hon","sora"], "ie")  // choice
+ls("neko", "🐱")                            // listen
+```
+
+Khi `packs` có từ 2 phần tử trở lên, ô chọn ngôn ngữ **tự xuất hiện** ở menu.
 
 ## Đồng hồ & chơi online (cờ caro · cờ vua · cờ tướng)
 

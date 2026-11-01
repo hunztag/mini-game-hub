@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Phản Xạ Ngoại Ngữ ⚡</title>
+  <link rel="stylesheet" href="../assets/shared.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <a class="back-link" href="../index.html">← Chọn game</a>
+  <button id="sound-btn" class="sound-btn" aria-label="Bật/tắt âm thanh" aria-pressed="true" title="Bật/tắt âm thanh">🔊</button>
+
+  <main class="app">
+    <header class="topbar">
+      <h1>Phản Xạ Ngoại Ngữ</h1>
+      <p class="subtitle">Đọc tiếng Việt · gõ ngoại ngữ thật nhanh trước khi hết giờ</p>
+    </header>
+
+    <!-- ================= MÀN CHỌN CẤP ĐỘ / MÀN CHƠI ================= -->
+    <section class="screen" id="menu">
+      <div class="lang-bar">
+        <span class="lang-chip" id="lang-chip">🇬🇧 English ↔ 🇻🇳 Tiếng Việt</span>
+        <select id="lang-select" class="lang-select hidden" aria-label="Chọn ngôn ngữ"></select>
+      </div>
+
+      <div class="levels" id="levels" role="group" aria-label="Chọn cấp độ"></div>
+
+      <p class="section-label">Chọn màn</p>
+      <div class="stages" id="stages"></div>
+
+      <button id="start-btn" class="primary-btn big">▶ Bắt đầu</button>
+
+      <p class="menu-note" id="menu-note">
+        3 mạng cho mỗi màn · trả lời đúng và nhanh để được nhiều điểm · qua màn để mở màn tiếp theo
+      </p>
+
+      <div class="menu-foot">
+        <button id="reset-progress-btn" class="ghost-btn tiny">🗑 Xoá tiến độ</button>
+      </div>
+    </section>
+
+    <!-- ================= MÀN CHƠI ================= -->
+    <section class="screen hidden" id="play">
+      <p class="play-title" id="stage-title">Cơ bản · Màn 1</p>
+
+      <div class="hud">
+        <div class="hud-item"><span>Câu</span><b id="hud-progress">1/8</b></div>
+        <div class="hud-item"><span>Điểm</span><b id="hud-score">0</b></div>
+        <div class="hud-item"><span>Chuỗi</span><b id="hud-combo">×0</b></div>
+        <div class="hud-lives" id="hud-lives" aria-label="Số mạng còn lại">❤️❤️❤️</div>
+      </div>
+
+      <div class="timer" id="timer">
+        <div class="timer-fill" id="timer-fill"></div>
+        <span class="timer-text" id="timer-text">20s</span>
+      </div>
+
+      <div class="prompt-card">
+        <p class="prompt-kind" id="prompt-kind">Dịch sang tiếng Anh</p>
+        <p class="prompt-text" id="prompt-text"></p>
+        <p class="prompt-hint hidden" id="prompt-hint"></p>
+        <div class="choices hidden" id="choices" role="group" aria-label="Các lựa chọn"></div>
+        <button id="speak-btn" class="ghost-btn sm hidden" type="button">🔊 Nghe lại</button>
+      </div>
+
+      <form class="answer-row" id="answer-form" autocomplete="off">
+        <input id="answer-input" class="answer-input" type="text" placeholder="Gõ câu trả lời…"
+               autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Câu trả lời" />
+        <button id="hint-btn" class="ghost-btn icon-btn" type="button" title="Gợi ý (mất 3 giây)" aria-label="Gợi ý">💡</button>
+        <button class="primary-btn" type="submit">Gửi</button>
+      </form>
+
+      <p class="feedback" id="feedback" aria-live="polite"></p>
+
+      <div class="actions">
+        <button id="quit-btn" class="ghost-btn" type="button">← Chọn màn</button>
+      </div>
+
+      <p class="hint">
+        <kbd>Enter</kbd> gửi câu trả lời · <kbd>Tab</kbd> tới nút Gợi ý · <kbd>Esc</kbd> về chọn màn<br />
+        Không cần viết hoa, không cần dấu chấm cuối câu
+      </p>
+    </section>
+
+    <!-- ================= KẾT QUẢ ================= -->
+    <div id="overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="overlay-title">
+      <h2 id="overlay-title">Kết thúc</h2>
+      <p id="overlay-text"></p>
+      <div class="overlay-actions" id="overlay-actions"></div>
+    </div>
+  </main>
+
+  <script src="../assets/audio.js"></script>
+  <script src="data.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

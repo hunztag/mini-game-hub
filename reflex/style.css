@@ -1,0 +1,718 @@
+/* ============================================================
+   Phản Xạ Ngoại Ngữ — giao diện
+   ============================================================ */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Ẩn/hiện dùng chung cho mọi khối có class .hidden */
+.hidden {
+  display: none !important;
+}
+
+:root {
+  --accent: #22d3ee;
+  --accent-2: #a3e635;
+  --good: #a3e635;
+  --warn: #fbbf24;
+  --bad: #f43f5e;
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --line: rgba(148, 163, 184, 0.22);
+  --card: rgba(15, 23, 42, 0.72);
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(4rem, 9vh, 5.5rem) 1rem 2.5rem;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  color: var(--text);
+  background: radial-gradient(circle at 16% 10%, #1e293b 0%, transparent 55%),
+    radial-gradient(circle at 84% 90%, #10273a 0%, transparent 55%),
+    linear-gradient(165deg, #0b1120, #0f1729 60%, #08131f);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app {
+  width: 100%;
+  max-width: 620px;
+}
+
+/* ---------- Nút âm thanh ---------- */
+.sound-btn {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 10;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 50%;
+  color: var(--text);
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(8px);
+  transition: transform 0.15s ease, border-color 0.2s ease, opacity 0.2s ease;
+}
+
+.sound-btn:hover {
+  transform: scale(1.08);
+  border-color: rgba(34, 211, 238, 0.5);
+}
+
+.sound-btn.off {
+  opacity: 0.55;
+}
+
+/* ---------- Header ---------- */
+.topbar {
+  text-align: center;
+  margin-bottom: 1.1rem;
+}
+
+.topbar h1 {
+  font-size: clamp(1.2rem, 4.6vw, 1.5rem);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  text-shadow: 0 0 22px rgba(34, 211, 238, 0.5);
+}
+
+.subtitle {
+  margin-top: 0.3rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* ---------- Màn hình ---------- */
+.screen.hidden {
+  display: none;
+}
+
+/* ---------- Chọn ngôn ngữ ---------- */
+.lang-bar {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0.8rem;
+}
+
+.lang-chip,
+.lang-select {
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--line);
+}
+
+.lang-select {
+  cursor: pointer;
+  appearance: none;
+  text-align: center;
+}
+
+.lang-select.hidden {
+  display: none;
+}
+
+/* ---------- Chọn cấp độ ---------- */
+.levels {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.level {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.6rem 0.4rem;
+  font: inherit;
+  cursor: pointer;
+  border-radius: 13px;
+  color: var(--muted);
+  background: var(--card);
+  border: 1px solid var(--line);
+  transition: color 0.18s ease, border-color 0.18s ease, transform 0.12s ease,
+    background 0.18s ease;
+}
+
+.level b {
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+}
+
+.level span {
+  font-size: 0.65rem;
+}
+
+.level:hover {
+  color: var(--text);
+  transform: translateY(-1px);
+}
+
+.level.active {
+  color: #04121a;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  border-color: transparent;
+  box-shadow: 0 6px 20px rgba(34, 211, 238, 0.28);
+}
+
+.level.active span {
+  opacity: 0.75;
+}
+
+/* ---------- Danh sách màn ---------- */
+.section-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--muted);
+  margin-bottom: 0.45rem;
+}
+
+.stages {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.7rem 2.6rem 0.7rem 0.9rem;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  border-radius: 13px;
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--line);
+  transition: border-color 0.18s ease, transform 0.12s ease, background 0.18s ease;
+}
+
+.stage:hover {
+  transform: translateY(-1px);
+  border-color: rgba(34, 211, 238, 0.5);
+}
+
+.stage.selected {
+  border-color: var(--accent);
+  background: rgba(34, 211, 238, 0.1);
+  box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.35) inset;
+}
+
+.stage-no {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+}
+
+.stage-name {
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.stage-meta {
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+.stage-flag {
+  position: absolute;
+  top: 50%;
+  right: 0.85rem;
+  transform: translateY(-50%);
+  font-size: 0.95rem;
+}
+
+.stage.cleared .stage-flag {
+  color: var(--good);
+}
+
+.stage.locked {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.stage.locked:hover {
+  transform: none;
+  border-color: var(--line);
+}
+
+/* ---------- Nút ---------- */
+.primary-btn,
+.ghost-btn {
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 12px;
+  padding: 0.6rem 1rem;
+  transition: transform 0.12s ease, filter 0.18s ease, border-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.primary-btn {
+  border: none;
+  color: #04121a;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  box-shadow: 0 6px 20px rgba(34, 211, 238, 0.28);
+}
+
+.primary-btn:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.primary-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.primary-btn.big {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  font-size: 0.95rem;
+  letter-spacing: 0.03em;
+}
+
+.primary-btn.sm,
+.ghost-btn.sm {
+  padding: 0.45rem 0.8rem;
+  font-size: 0.78rem;
+}
+
+.ghost-btn {
+  color: var(--text);
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid var(--line);
+}
+
+.ghost-btn:hover {
+  border-color: rgba(34, 211, 238, 0.5);
+  color: var(--accent);
+}
+
+.ghost-btn.tiny {
+  padding: 0.35rem 0.7rem;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.icon-btn {
+  padding: 0.6rem 0.75rem;
+  line-height: 1;
+}
+
+.menu-note {
+  margin-top: 0.75rem;
+  font-size: 0.7rem;
+  line-height: 1.6;
+  text-align: center;
+  color: var(--muted);
+}
+
+.menu-foot {
+  display: flex;
+  justify-content: center;
+  margin-top: 0.6rem;
+}
+
+/* ---------- Màn chơi ---------- */
+.play-title {
+  text-align: center;
+  font-size: 0.72rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.6rem;
+}
+
+.hud {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 13px;
+  background: var(--card);
+  border: 1px solid var(--line);
+}
+
+.hud-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+.hud-item b {
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.hud-item:nth-child(2) b {
+  color: var(--accent);
+}
+
+.hud-lives {
+  margin-left: auto;
+  font-size: 0.95rem;
+  letter-spacing: 0.1em;
+}
+
+/* ---------- Thanh thời gian ---------- */
+.timer {
+  position: relative;
+  height: 26px;
+  margin: 0.6rem 0;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid var(--line);
+}
+
+.timer-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  transition: width 0.08s linear, background 0.3s ease;
+}
+
+.timer-text {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  height: 100%;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #f8fafc;
+  text-shadow: 0 1px 3px rgba(2, 8, 20, 0.9);
+}
+
+.timer.warn .timer-fill {
+  background: linear-gradient(90deg, #fcd34d, var(--warn));
+}
+
+.timer.danger .timer-fill {
+  background: linear-gradient(90deg, #fb7185, var(--bad));
+}
+
+.timer.danger {
+  animation: timerPulse 0.9s ease-in-out infinite;
+}
+
+@keyframes timerPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 rgba(244, 63, 94, 0);
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(244, 63, 94, 0.55);
+  }
+}
+
+/* ---------- Thẻ câu hỏi ---------- */
+.prompt-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1.15rem 1rem 1.25rem;
+  text-align: center;
+  border-radius: 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+.prompt-kind {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--accent);
+}
+
+.prompt-text {
+  font-size: clamp(1.05rem, 4.6vw, 1.35rem);
+  font-weight: 600;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.prompt-hint {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.prompt-hint.hidden {
+  display: none;
+}
+
+.prompt-text .blank {
+  display: inline-block;
+  min-width: 3.2rem;
+  padding: 0 0.3rem;
+  border-bottom: 2px solid var(--accent);
+  color: var(--accent);
+}
+
+.prompt-text .say-icon {
+  font-size: 1.5rem;
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+/* ---------- Trắc nghiệm ---------- */
+.choices {
+  display: grid;
+  gap: 0.45rem;
+  width: 100%;
+  margin-top: 0.25rem;
+}
+
+.choices.hidden {
+  display: none;
+}
+
+.choice {
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.6rem 0.75rem;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text);
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+}
+
+.choice:hover:not(:disabled) {
+  border-color: rgba(34, 211, 238, 0.6);
+  transform: translateX(2px);
+}
+
+.choice:disabled {
+  cursor: default;
+}
+
+.choice.good {
+  color: #062015;
+  background: var(--good);
+  border-color: var(--good);
+}
+
+.choice.bad {
+  color: #fff;
+  background: rgba(244, 63, 94, 0.85);
+  border-color: var(--bad);
+}
+
+/* ---------- Ô trả lời ---------- */
+.answer-row {
+  display: flex;
+  gap: 0.45rem;
+  margin-top: 0.7rem;
+}
+
+.answer-input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 16px; /* tránh iOS tự zoom */
+  padding: 0.6rem 0.85rem;
+  border-radius: 12px;
+  color: var(--text);
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid var(--line);
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.answer-input::placeholder {
+  color: rgba(148, 163, 184, 0.75);
+}
+
+.answer-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.18);
+}
+
+.answer-input:disabled {
+  opacity: 0.55;
+}
+
+.answer-input.shake {
+  animation: shake 0.3s ease;
+  border-color: var(--bad);
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-5px);
+  }
+  75% {
+    transform: translateX(5px);
+  }
+}
+
+/* ---------- Phản hồi ---------- */
+.feedback {
+  min-height: 1.5rem;
+  margin-top: 0.6rem;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  text-align: center;
+  color: var(--muted);
+  word-break: break-word;
+}
+
+.feedback.good {
+  color: var(--good);
+}
+
+.feedback.bad {
+  color: #fda4af;
+}
+
+.feedback b {
+  color: inherit;
+}
+
+/* ---------- Footer ---------- */
+.actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.8rem;
+}
+
+.hint {
+  margin-top: 0.9rem;
+  font-size: 0.68rem;
+  line-height: 1.8;
+  text-align: center;
+  color: var(--muted);
+}
+
+kbd {
+  display: inline-block;
+  padding: 0.05rem 0.35rem;
+  font-family: inherit;
+  font-size: 0.66rem;
+  border-radius: 5px;
+  color: var(--text);
+  background: rgba(148, 163, 184, 0.14);
+  border: 1px solid var(--line);
+}
+
+/* ---------- Overlay kết quả ---------- */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  text-align: center;
+  background: rgba(4, 10, 20, 0.82);
+  backdrop-filter: blur(6px);
+}
+
+.overlay.hidden {
+  display: none;
+}
+
+.overlay h2 {
+  font-size: 1.3rem;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+}
+
+.overlay h2.lose {
+  color: #fda4af;
+}
+
+.overlay p {
+  max-width: 22rem;
+  font-size: 0.85rem;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+.overlay-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+
+/* ---------- Điện thoại ---------- */
+@media (max-width: 430px) {
+  body {
+    align-items: flex-start;
+    padding-top: 4.2rem;
+  }
+
+  .level span {
+    display: none;
+  }
+
+  .hud {
+    gap: 0.35rem;
+    padding: 0.45rem 0.6rem;
+  }
+
+  .answer-row {
+    gap: 0.35rem;
+  }
+
+  .primary-btn,
+  .ghost-btn {
+    padding: 0.55rem 0.8rem;
+    font-size: 0.82rem;
+  }
+
+  .answer-input {
+    padding: 0.55rem 0.7rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
