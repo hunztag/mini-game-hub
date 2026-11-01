@@ -1,9 +1,12 @@
 # Render Blueprint — deploy 1 service duy nhất (web tĩnh + relay WebSocket)
-# Cách dùng: đẩy repo lên GitHub → Render → New + → Blueprint → chọn repo này → Apply.
+# Cách dùng: Render → New + → Blueprint → chọn repo hunztag/mini-game-hub → Apply.
 #
 # Server chạy trong thư mục server/ nhưng WEB_ROOT trỏ lên gốc repo,
 # nên mở https://<ten-app>.onrender.com/ là vào luôn trang chủ chọn game,
 # và caro online tự kết nối wss://<ten-app>.onrender.com/ws.
+#
+# ⚠️ Phải là WEB SERVICE (chạy Node), KHÔNG phải Static Site —
+#    static site không chạy được WebSocket nên phần chơi online sẽ hỏng.
 services:
   - type: web
     name: mini-game-hub
@@ -14,7 +17,8 @@ services:
     buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /healthz
-    autoDeploy: true
+    autoDeployTrigger: commit
     envVars:
       - key: NODE_VERSION
         value: "20"
+
