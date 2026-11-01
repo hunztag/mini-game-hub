@@ -33,6 +33,32 @@ window.GAMES = [
     ],
   },
   {
+    id: "chess",
+    icon: "♟️",
+    name: "Cờ Vua",
+    desc: "Chess chuẩn quốc tế trên bàn 8×8: phong cấp, nhập thành, bắt tốt qua đường. Đấu máy 3 độ khó, 2 người cùng máy hoặc online bằng mã phòng.",
+    href: "chess/index.html",
+    status: "ready",
+    tags: [
+      { text: "Đấu AI" },
+      { text: "2 người", color: "green" },
+      { text: "Online", color: "pink" },
+    ],
+  },
+  {
+    id: "xiangqi",
+    icon: "🏮",
+    name: "Cờ Tướng",
+    desc: "Cờ tướng trên bàn 9×10 với sông, cung và pháo. Chiếu bí hoặc làm đối phương hết nước đi để thắng. Có đấu máy, 2 người và chơi online.",
+    href: "xiangqi/index.html",
+    status: "ready",
+    tags: [
+      { text: "Đấu AI" },
+      { text: "2 người", color: "green" },
+      { text: "Online", color: "pink" },
+    ],
+  },
+  {
     id: "2048",
     icon: "🔢",
     name: "2048",

@@ -1,0 +1,285 @@
+/* ============================================================
+   Phần dùng chung cho cờ vua / cờ tướng:
+   - bảng chơi online (tạo phòng, vào phòng, link mời)
+   - giới hạn thời gian mỗi lượt + đồng hồ đếm ngược
+   Dùng các biến màu đã khai báo trong style.css của từng game.
+   ============================================================ */
+
+/* ---------- Bảng chơi online ---------- */
+.online-panel {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.7rem;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid var(--line);
+}
+
+.online-panel.hidden {
+  display: none;
+}
+
+.online-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.online-row.hidden {
+  display: none;
+}
+
+.online-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  min-width: 3.6rem;
+}
+
+.online-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.7rem;
+  font: inherit;
+  font-size: 0.78rem;
+  color: var(--text);
+  border-radius: 9px;
+  background: rgba(2, 6, 23, 0.7);
+  border: 1px solid var(--line);
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.online-input::placeholder {
+  color: rgba(148, 163, 184, 0.7);
+}
+
+.online-input:focus {
+  border-color: rgba(34, 211, 238, 0.6);
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.15);
+}
+
+.online-input.code {
+  flex: 0 1 8rem;
+  text-align: center;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+/* Chọn kiểu kết nối: P2P (không cần server) hay relay WebSocket */
+.online-row.conn-row {
+  flex-wrap: wrap;
+}
+
+.conn-opts {
+  display: flex;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: 0;
+  padding: 0.25rem;
+  border-radius: 12px;
+  background: rgba(2, 6, 23, 0.7);
+  border: 1px solid var(--line);
+}
+
+.conn-btn {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.42rem 0.5rem;
+  border-radius: 9px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--muted);
+  background: transparent;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.conn-btn:hover {
+  color: var(--text);
+}
+
+.conn-btn.active {
+  color: #04121a;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  box-shadow: 0 4px 14px rgba(34, 211, 238, 0.3);
+}
+
+.primary-btn.sm,
+.ghost-btn.sm {
+  flex: 0 0 auto;
+  margin-top: 0;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.74rem;
+  border-radius: 9px;
+}
+
+.ghost-btn.sm.hidden,
+.primary-btn.sm.hidden {
+  display: none;
+}
+
+.online-status {
+  margin: 0;
+  font-size: 0.74rem;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.online-status.ok {
+  color: var(--accent-2);
+}
+
+.online-status.err {
+  color: var(--danger);
+}
+
+.online-status b {
+  color: var(--text);
+  letter-spacing: 0.14em;
+}
+
+/* ---------- Giới hạn thời gian mỗi lượt ---------- */
+.time-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.time-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.time-opts {
+  display: flex;
+  gap: 0.3rem;
+  margin-left: auto;
+  padding: 0.25rem;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid var(--line);
+}
+
+.time-btn {
+  border: none;
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding: 0.38rem 0.7rem;
+  border-radius: 9px;
+  cursor: pointer;
+  color: var(--muted);
+  background: transparent;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.time-btn:hover {
+  color: var(--text);
+}
+
+.time-btn.active {
+  color: #04121a;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  box-shadow: 0 4px 14px rgba(34, 211, 238, 0.3);
+}
+
+/* ---------- Đồng hồ đếm ngược ---------- */
+.clock {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid var(--line);
+  transition: border-color 0.25s ease, opacity 0.25s ease;
+}
+
+.clock-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: linear-gradient(90deg, rgba(34, 211, 238, 0.7), rgba(163, 230, 53, 0.7));
+  transition: width 0.1s linear, background 0.3s ease;
+}
+
+.clock-text {
+  position: relative;
+  font-size: 0.76rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+  color: var(--text);
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.75);
+}
+
+.clock.idle {
+  opacity: 0.5;
+}
+
+.clock.idle .clock-fill {
+  width: 0 !important;
+}
+
+.clock.warn {
+  border-color: rgba(245, 158, 11, 0.6);
+}
+
+.clock.warn .clock-fill {
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.85), rgba(239, 68, 68, 0.85));
+}
+
+.clock.danger {
+  border-color: rgba(244, 63, 94, 0.75);
+  animation: clockPulse 1s ease-in-out infinite;
+}
+
+.clock.danger .clock-fill {
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.9), rgba(185, 28, 28, 0.9));
+}
+
+@keyframes clockPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(244, 63, 94, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(244, 63, 94, 0.18);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clock.danger {
+    animation: none;
+  }
+}
+
+@media (max-width: 430px) {
+  .online-input.code {
+    flex: 0 1 5.5rem;
+    letter-spacing: 0.14em;
+  }
+
+  .time-btn {
+    padding: 0.34rem 0.55rem;
+    font-size: 0.7rem;
+  }
+}

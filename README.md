@@ -9,9 +9,13 @@ Mở `web-game/index.html` bằng trình duyệt là chơi được ngay.
 | Game | Trạng thái | Mô tả |
 |---|---|---|
 | 🐍 Rắn săn mồi | ✅ Sẵn sàng | 6 màn, có tường chắn, âm thanh, đồ họa neon |
-| ⚫ Cờ caro | ✅ Sẵn sàng | Bàn 15×15, đấu với máy (3 độ khó) hoặc 2 người |
+| ⚫ Cờ caro | ✅ Sẵn sàng | Bàn 15×15, đấu máy (3 độ khó), 2 người, **online** (mã phòng) |
+| ♟️ Cờ vua | ✅ Sẵn sàng | Bàn 8×8, đủ luật (phong cấp, nhập thành, bắt tốt qua đường), đấu máy (3 độ khó), 2 người, **online** |
+| 🏮 Cờ tướng | ✅ Sẵn sàng | Bàn 9×10 có sông và cung, đấu máy (3 độ khó), 2 người, **online** |
 | 🔢 2048 | 🚧 Sắp có | — |
 | 🃏 Lật thẻ | 🚧 Sắp có | — |
+
+Cả 3 game cờ đều có **giới hạn thời gian mỗi lượt** (`30s` / `60s` / `120s` / `Không`) — hết giờ là thua ván đó.
 
 ## Cách chơi chung
 
@@ -30,7 +34,12 @@ web-game/
 │   ├── hub.js          # Render danh sách game từ games.js
 │   ├── games.js        # ⭐ Danh sách game (sửa file này để thêm game)
 │   ├── shared.css      # Nút "← Chọn game" dùng chung
-│   └── audio.js        # Thư viện âm thanh tổng hợp (Web Audio API)
+│   ├── audio.js        # Thư viện âm thanh tổng hợp (Web Audio API)
+│   ├── net.js          # ⭐ Online qua relay WebSocket (dùng chung, theo game)
+│   ├── p2p.js          # ⭐ Online ngang hàng WebRTC — KHÔNG cần server
+│   ├── clock.js        # ⭐ Đồng hồ đếm ngược mỗi lượt (dùng chung)
+│   ├── online.js       # ⭐ Bảng "🌐 Online" + kết nối (dùng chung)
+│   └── online.css      # ⭐ Giao diện bảng Online + thanh thời gian + clock
 ├── snake/              # 🐍 Game rắn
 │   ├── index.html
 │   ├── style.css
@@ -42,6 +51,16 @@ web-game/
 │   ├── ai.js           # Máy đánh cờ (easy / normal / hard)
 │   ├── net.js          # Online qua relay WebSocket (tuỳ chọn)
 │   └── p2p.js          # Online ngang hàng WebRTC — KHÔNG cần server
+├── chess/              # ♟️ Cờ vua
+│   ├── index.html
+│   ├── style.css
+│   ├── script.js       # Giao diện + điều khiển + online + đồng hồ
+│   └── engine.js       # Luật cờ vua + AI minimax (alpha-beta)
+├── xiangqi/            # 🏮 Cờ tướng
+│   ├── index.html
+│   ├── style.css
+│   ├── script.js       # Giao diện + điều khiển + online + đồng hồ
+│   └── engine.js       # Luật cờ tướng + AI minimax (alpha-beta)
 └── server/             # Server Node.js: web tĩnh + relay online (tuỳ chọn)
     ├── package.json
     ├── server.js
@@ -126,6 +145,60 @@ Trên điện thoại: dùng các nút mũi tên bên dưới bàn chơi hoặc 
 
 **Chơi online:** chọn `🌐 Online` → giữ nút **⚡ P2P** (mặc định, không cần server) → **Tạo phòng** → **📋 Copy link mời** → gửi link cho bạn. Người mở link được tự động vào phòng và cầm quân Trắng. Nếu mạng chặn P2P thì bấm **🖥 Server riêng** và deploy `server/` (xem mục *Chơi online với bạn*).
 
+## Cờ vua — luật & điều khiển
+
+- Bàn **8×8**, đủ luật: **phong cấp**, **nhập thành**, **bắt tốt qua đường**, chiếu bí / hết nước đi / hòa 50 nước.
+- Chế độ: **Đấu với máy** (bạn cầm Trắng), **2 người cùng máy**, hoặc **🌐 Online**.
+- Độ khó: `Dễ` / `Thường` / `Khó` (minimax alpha-beta, càng khó càng tính sâu).
+
+| Phím | Tác dụng |
+|---|---|
+| Click / chạm vào quân rồi tới ô đích | Đi quân |
+| `U` | Hoàn tác (không dùng được khi online) |
+| `R` | Ván mới (online: báo cả đối thủ) |
+| `M` | Bật / tắt âm thanh |
+
+Điểm thắng lưu trong `localStorage` (`chess-score`) — **không** cộng điểm khi chơi online.
+
+## Cờ tướng — luật & điều khiển
+
+- Bàn **9×10** có **sông** và **cung**, Tướng không được lộ mặt, hết nước đi là thua.
+- Chế độ: **Đấu với máy** (bạn cầm Đỏ), **2 người cùng máy**, hoặc **🌐 Online**.
+- Độ khó: `Dễ` / `Thường` / `Khó`.
+
+| Phím | Tác dụng |
+|---|---|
+| Click / chạm vào quân rồi tới ô đích | Đi quân |
+| `U` | Hoàn tác (không dùng được khi online) |
+| `R` | Ván mới (online: báo cả đối thủ) |
+| `M` | Bật / tắt âm thanh |
+
+Điểm thắng lưu trong `localStorage` (`xiangqi-score`).
+
+## Đồng hồ & chơi online (cờ caro · cờ vua · cờ tướng)
+
+Ba game cờ dùng **cùng một bộ module dùng chung** trong `assets/`, nên hành vi giống nhau hoàn toàn:
+
+| Thành phần | Vai trò |
+|---|---|
+| `assets/net.js` (`window.GameNet`) | Relay online qua WebSocket (`?ws`) — mỗi game một kênh riêng |
+| `assets/p2p.js` (`window.GameP2P`) | P2P WebRTC qua PeerJS — **không cần server** |
+| `assets/clock.js` (`window.GameClock`) | Đồng hồ đếm ngược mỗi lượt, tự dừng khi không phải lượt mình |
+| `assets/online.js` (`window.GameOnline`) | Bảng Online: chọn kiểu kết nối, tạo / vào phòng, link mời, trạng thái |
+
+**Thanh `⏱ Mỗi lượt`** ngay trên bàn cờ có 4 lựa chọn — `30s`, `60s`, `120s`, `Không` (mặc định).
+
+- Đồng hồ chạy từ **nước đi đầu tiên**, đếm ngược cho người đang đến lượt (lượt của máy AI không bị tính).
+- 10 giây cuối thanh đổi màu vàng, 5 giây cuối đỏ + tiếng tick.
+- **Hết giờ = thua ván đó.** Lựa chọn được nhớ trong `localStorage` (`<game>-turn-time`).
+- Khi online: giới hạn do **người tạo phòng** quyết định, đổi giới hạn được báo cho đối thủ (`config`); chỉ bên hết giờ mới gửi `timeout` nên hai máy không bao giờ lệch kết quả.
+
+**Vào phòng:** chọn `🌐 Online` → **⚡ P2P** (mặc định) hoặc **🖥 Server riêng** → **Tạo phòng** → **📋 Copy link mời** → gửi link (`.../<game>/?room=K7M2Q`).
+
+- Người mở link **tự động vào phòng** và cầm bên đi sau (Đen); bàn cờ **tự lật 180°** để quân của họ ở phía dưới.
+- Mọi nước đi, xin ván mới, đổi giới hạn thời gian đều được đồng bộ hai chiều; **hoàn tác bị tắt** khi online để tránh lệch trạng thái.
+- Phòng thuộc về một game: vào nhầm mã của game khác sẽ báo *“Phòng này thuộc game khác”*.
+
 ## Cách thêm game mới
 
 1. Tạo thư mục `web-game/<ten-game>/` với `index.html`, `style.css`, `script.js`.
@@ -153,9 +226,23 @@ Trên điện thoại: dùng các nút mũi tên bên dưới bàn chơi hoặc 
 
 4. Xong — trang chủ tự render card mới, không cần sửa HTML.
 
+**Muốn game mới có online + đồng hồ như 3 game cờ?** Không cần viết lại gì, chỉ cần:
+
+```html
+<link rel="stylesheet" href="../assets/online.css" />
+<script src="../assets/clock.js"></script>
+<script src="../assets/net.js"></script>
+<script src="../assets/p2p.js"></script>
+<script src="../assets/online.js"></script>
+```
+
+rồi copy khối `.online-panel` + `.time-bar` + `#clock` từ `chess/index.html` và gọi
+`GameClock.create({...})` / `GameOnline.create({...})` như mục *Giao thức* ở trên
+(xem `chess/script.js` làm mẫu — khoảng 60 dòng).
+
 ## Chơi online với bạn
 
-Bảng **🌐 Online** trong cờ caro có **2 kiểu kết nối** — bấm nút tương ứng ở hàng «Kết nối»:
+Bảng **🌐 Online** (trong cờ caro, cờ vua và cờ tướng — cùng một bộ module `assets/`) có **2 kiểu kết nối** — bấm nút tương ứng ở hàng «Kết nối»:
 
 | Kiểu | Cần gì | Khi nào dùng |
 |---|---|---|
@@ -166,13 +253,14 @@ Cả hai kiểu dùng **chung một giao thức tin nhắn** (`move`, `restart`,
 
 ### Cách dùng nhanh (P2P — không cần deploy gì)
 
-1. Mở trang caro (local hay `https://<tên-bạn>.github.io/mini-game-hub/caro/` đều được).
+1. Mở trang game (local hay `https://<tên-bạn>.github.io/mini-game-hub/chess/` đều được).
 2. Chọn `🌐 Online` → giữ nút **⚡ P2P** → bấm **Tạo phòng** → nhận mã 5 ký tự (ví dụ `K7M2Q`).
-3. Bấm **📋 Copy link mời** → gửi link (`.../caro/?room=K7M2Q`) cho bạn.
-4. Bạn mở link là **tự động vào phòng**; người tạo cầm **Đen** (đi trước), người vào sau cầm **Trắng**.
+3. Bấm **📋 Copy link mời** → gửi link (`.../<game>/?room=K7M2Q`) cho bạn.
+4. Bạn mở link là **tự động vào phòng** và đi sau (cờ vua: Đen · cờ tướng: Đen · caro: Trắng) — bàn cờ của người vào sau được **lật 180°**.
 5. Đổi mức thời gian (30s / 60s / 120s) ở bên tạo phòng sẽ được báo cho đối thủ.
 
 > P2P phụ thuộc broker công khai của PeerJS và cần WebRTC. Nếu mạng công ty/trường chặn P2P, hãy chuyển sang **🖥 Server riêng**.
+> Mã phòng P2P dùng tiền tố riêng theo game (`gmk-<game>-v1-<MÃ>`) nên phòng cờ vua và cờ tướng không bao giờ đụng nhau.
 
 ### Chế độ Server riêng (relay WebSocket)
 
@@ -191,9 +279,10 @@ Sau đó mở **http://localhost:8080/**
 Server này phục vụ luôn file web tĩnh (thư mục `web-game`) ở cổng 8080 và WebSocket ở đường dẫn `/ws`, nên không cần chạy thêm server tĩnh nào khác.
 
 - `GET /` → trang chủ chọn game
-- `GET /caro/` → game cờ caro
+- `GET /` → trang chủ chọn game
+- `GET /caro/`, `/chess/`, `/xiangqi/` → từng game
 - `GET /healthz` → `{"ok":true,"rooms":0}`
-- `WS /ws` → relay chơi online
+- `WS /ws` → relay chơi online (dùng chung cho cả 3 game)
 
 ### 2. Thử chơi online (kiểu Server riêng)
 
@@ -203,40 +292,50 @@ Server này phục vụ luôn file web tĩnh (thư mục `web-game`) ở cổng 
 4. Bạn của bạn mở link là **tự động vào phòng**, không cần nhập mã.
 5. Tab A cầm **Đen** (đi trước), người vào sau cầm **Trắng**. Hai bên tự thấy nước đi của nhau.
 
-Ô **Server** cho phép đổi địa chỉ relay; giá trị được ghi nhớ trong `localStorage` (`caro-server-url`). Mặc định:
+Ô **Server** cho phép đổi địa chỉ relay; giá trị được ghi nhớ trong `localStorage` (`<game>-server-url`). Mặc định:
 
 - mở bằng `file://` → `ws://localhost:8080/ws`
 - mở bằng `http://` hoặc `https://` → cùng host với trang (`ws://` hoặc `wss://` + `/ws`)
 
-### 3. Giao thức (giống nhau cho cả `caro/net.js` và `caro/p2p.js`)
+### 3. Giao thức (`assets/net.js` cho relay, `assets/p2p.js` cho P2P — giống hệt nhau)
 
 | Client → Server | Server → Client | Ý nghĩa |
 |---|---|---|
-| `{t:"create", turnTime}` | `{t:"created", room, player, turnTime}` | Tạo phòng, nhận mã 5 ký tự (kèm giới hạn thời gian) |
-| `{t:"join", room}` | `{t:"joined", room, player, turnTime}` | Vào phòng bằng mã |
+| `{t:"create", turnTime, game}` | `{t:"created", room, player, game, turnTime}` | Tạo phòng, nhận mã 5 ký tự (kèm giới hạn thời gian + game) |
+| `{t:"join", room, game}` | `{t:"joined", room, player, game, turnTime}` | Vào phòng bằng mã (sai game → `error`) |
 | — | `{t:"peer", online}` | Đối thủ vào / rời phòng |
-| `{t:"move", index, player}` | chuyển tiếp cho người còn lại | Đánh quân |
+| `{t:"move", move:{from,to}, index}` | chuyển tiếp cho người còn lại | Đánh quân (payload trong suốt — server không hiểu luật) |
 | `{t:"restart"}` | chuyển tiếp | Xin ván mới |
 | `{t:"config", turnTime}` | `{t:"config", turnTime}` | Đổi giới hạn thời gian mỗi lượt (`0` = không giới hạn) |
 | `{t:"timeout"}` | `{t:"timeout", player}` | Người đến lượt báo đã hết giờ (server tự điền ghế thật) |
-| — | `{t:"error", message}` | Phòng không tồn tại / đã đủ |
+| — | `{t:"error", message}` | Phòng không tồn tại / đã đủ / sai game |
 
-Dùng `net.js` (Server riêng) hoặc `p2p.js` (P2P) — **API giống hệt nhau**:
+> `move` được chuyển tiếp **nguyên vẹn**: caro gửi `{index}`, cờ vua gửi `{from,to,promo}`, cờ tướng gửi `{from,to}`.
+
+Dùng `assets/net.js` (Server riêng) hoặc `assets/p2p.js` (P2P) — **API giống hệt nhau**:
 
 ```js
-// Server riêng
+// Cách 1 — dùng transport trực tiếp (cờ caro đang làm như vậy)
 await CaroNet.connect("wss://ten-server-cua-ban.onrender.com/ws");
 const { room, player, turnTime } = await CaroNet.createRoom(60); // player = 1 | 2
-
-// P2P (không cần server)
-await CaroP2P.connect();
-const { room, player } = await CaroP2P.createRoom(60);
-
-// Sự kiện dùng chung
 CaroNet.on("move", ({ index, player }) => applyRemoteMove(index, player));
-CaroNet.on("peer", (online) => { /* cập nhật trạng thái */ });
-CaroNet.on("config", (seconds) => { /* đối thủ đổi giới hạn thời gian */ });
-CaroNet.on("timeout", (seat) => { /* đối thủ hết giờ */ });
+
+// Cách 2 — dùng bảng Online dựng sẵn (cờ vua / cờ tướng đang dùng)
+const online = GameOnline.create({
+  game: "chess",                                  // phân phòng theo game
+  seatName: (seat) => (seat === 1 ? "Trắng" : "Đen"),
+  els: { panel, serverRow, serverInput, roomInput, createBtn, joinBtn, shareBtn, leaveBtn, status, connBtns },
+  getTurnTime: () => clock.turnTime,
+  onReset: () => restart(false),
+  onMove: (payload) => applyRemoteMove(payload),
+  onRemoteRestart: () => restart(false),
+  onRemoteConfig: (seconds) => clock.set(seconds, false),
+  onRemoteTimeout: (seat) => applyRemoteTimeout(seat),
+  onPeerChange: () => updateTurnUI(),
+});
+online.init();       // bind transport + nút bấm + khôi phục lựa chọn đã lưu
+online.setActive(true); // hiện bảng khi chọn chế độ Online
+online.joinRoom("K7M2Q"); // hoặc online.createRoom()
 ```
 
 ### 4. Đưa web lên Internet
@@ -328,8 +427,15 @@ Script `_test-relay.js` giả lập 2 client và kiểm tra: tạo phòng → v�
 | **P2P (WebRTC): tạo phòng → vào phòng → 2 chiều** | ✅ chạy không cần server, mã phòng = Peer ID rút gọn |
 | **P2P: đổi giới hạn thời gian / restart / hết giờ** | ✅ đồng bộ y như relay WebSocket |
 | **P2P: đối thủ đóng tab** | ✅ hiện “Đối thủ đã rời phòng …” |
-| **Chuyển qua lại ⚡ P2P ↔ 🖥 Server riêng** | ✅ nhớ lựa chọn trong `localStorage` (`caro-conn-kind`) |
+| **Chuyển qua lại ⚡ P2P ↔ 🖥 Server riêng** | ✅ nhớ lựa chọn trong `localStorage` (`<game>-conn-kind`) |
 | Mở link mời `?room=CODE` | ✅ tự vào phòng |
+| **Cờ vua online (relay WS)**: nước đi 2 chiều, `restart`, `config` | ✅ quân đi đúng ô ở cả hai máy, đồng hồ theo phòng |
+| **Cờ vua online (P2P)**: tạo / vào phòng, nước đi 2 chiều, restart | ✅ chạy không cần server |
+| **Cờ vua online: bàn cờ lật cho người vào sau** | ✅ toạ độ (`a–h`, `1–8`) vẫn đúng sau khi lật |
+| **Cờ vua online: hết giờ** | ✅ bên hết giờ “Bạn hết giờ 😢”, bên kia “Đối thủ hết giờ 🎉”, không cộng điểm |
+| **Cờ tướng online (relay WS)**: nước đi 2 chiều, `config` | ✅ bàn 9×10 lật đúng, quân hai bên khớp |
+| **Cờ tướng online: hết giờ ở ghế người vào sau** | ✅ hai bên ra cùng một kết quả (Đỏ thắng) |
+| Chơi offline (AI / 2 người) sau khi thêm online | ✅ không hồi quy: AI trả lời, hoàn tác, điểm vẫn lưu |
 | Chặn `../` (path traversal) | ✅ trả 403 |
 | Chặn truy cập `/server/**` (mã nguồn, `node_modules`) | ✅ trả 403 |
 | Chặn file ẩn (`.gitignore`, `.env`, `.git`) | ✅ trả 403 |
@@ -344,12 +450,15 @@ Script `_test-relay.js` giả lập 2 client và kiểm tra: tạo phòng → v�
 
 ## Ghi chú kỹ thuật
 
-- **Không dùng ES modules** — mọi file JS gắn vào `window` (`window.Sound`, `window.GAMES`, `window.CaroAI`, `window.CaroNet`) và nạp bằng `<script>` thường, nhờ vậy mở bằng `file://` vẫn chạy.
+- **Không dùng ES modules** — mọi file JS gắn vào `window` (`window.Sound`, `window.GAMES`, `window.CaroAI`, `window.CaroNet`, `window.GameNet`, `window.GameP2P`, `window.GameClock`, `window.GameOnline`, `window.ChessEngine`, `window.XiangqiEngine`) và nạp bằng `<script>` thường, nhờ vậy mở bằng `file://` vẫn chạy.
 - **Server tĩnh an toàn**: mọi đường dẫn được resolve trong `web-game/`; `../` bị chặn, thư mục `server/` và các file ẩn (`.` prefix) luôn trả 403.
 - **Âm thanh tổng hợp hoàn toàn** bằng Web Audio API (oscillator + noise buffer) → không có file `.mp3` nào, tải trang cực nhẹ.
 - **Snake** vẽ bằng Canvas 2D, có nội suy chuyển động + `devicePixelRatio` cho màn hình Retina.
 - **Caro** dùng DOM grid (225 ô) để tận dụng CSS animation / hover, nhẹ hơn Canvas cho bàn cờ nhỏ.
-- **Đồng hồ caro**: mỗi client tự đếm bằng `performance.now()` (server không giữ giờ). Chỉ người đang đến lượt mới gửi `timeout`, nên hai bên không bao giờ ra kết quả lệch nhau; đổi giới hạn thời gian được lan sang đối thủ qua `config`.
+- **Cờ vua / cờ tướng** cũng dùng DOM grid (64 / 90 ô); luật + AI nằm trong `engine.js` riêng, `script.js` chỉ lo giao diện và đồng bộ online.
+- **Online dùng chung**: `assets/net.js`, `assets/p2p.js`, `assets/clock.js`, `assets/online.js` là **factory** — mỗi game gọi `GameOnline.create({ game, els, getTurnTime, onMove, … })` và chỉ cần khai báo phần DOM + callback của mình. Nhờ vậy 3 game có hành vi online/đồng hồ giống nhau mà không copy code.
+- **Đồng hồ**: mỗi client tự đếm bằng `performance.now()` (server không giữ giờ) và chỉ chạy khi `shouldRun()` đúng — lượt của máy AI và lượt của đối thủ không bị trừ giờ của bạn. Chỉ bên đang hết giờ mới gửi `timeout`, nên hai bên không bao giờ ra kết quả lệch nhau; đổi giới hạn thời gian được lan sang đối thủ qua `config`.
+- **Đồng bộ nước đi online**: payload chỉ là `{from, to, promo?}` (chỉ số ô), bên nhận kiểm tra lại bằng `engine.genLegalMoves()` rồi mới áp dụng — sai lệch thì bỏ qua, không phá ván.
 
 ## Tuỳ chỉnh nhanh
 
@@ -373,3 +482,14 @@ const TURN_TIMES = [0, 30, 60, 120]; // các mức giới hạn thời gian mỗ
 > Nếu đổi `TURN_TIMES`, nhớ sửa `TURN_TIMES` trong `server/server.js` và thêm nút
 > `<button class="time-btn" data-time="...">` tương ứng trong `caro/index.html`.
 > Server chỉ chấp nhận các mức nằm trong danh sách của nó (giá trị lạ bị đưa về `0`).
+
+Tuỳ chỉnh cờ vua / cờ tướng — đầu file `chess/script.js` / `xiangqi/script.js`:
+
+```js
+const AI_DELAY = 220;          // độ "suy nghĩ" của máy (ms)
+// độ sâu minimax nằm trong engine.js (DEPTH theo độ khó)
+// các mức thời gian lấy từ GameClock.TIMES = [0, 30, 60, 120]
+```
+
+> Đổi mức thời gian cho **cả 3 game**: sửa `TIMES` trong `assets/clock.js` + `TURN_TIMES` trong
+> `server/server.js`, rồi thêm/bớt nút `.time-btn[data-time]` trong `index.html` của từng game.

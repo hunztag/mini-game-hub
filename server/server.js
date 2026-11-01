@@ -1,6 +1,6 @@
 /**
  * Server cho Mini Game Hub: vừa phục vụ file web tĩnh, vừa làm relay
- * WebSocket cho cờ caro online (tối giản, không lưu dữ liệu).
+ * WebSocket cho các game bàn cờ chơi online (tối giản, không lưu dữ liệu).
  *
  * - Web tĩnh : http://localhost:8080/           (thư mục cha của /server)
  * - WebSocket: ws://localhost:8080/ws
@@ -12,7 +12,11 @@
  * server, HTTPS/WSS do nền tảng tự cấp. Nhờ vậy web và game online chung
  * một domain, client mặc định kết nối wss://<host>/ws.
  *
- * Giao thức: xem comment đầu file web-game/caro/net.js
+ * Mỗi phòng gắn với một game (caro / chess / xiangqi) để không vào nhầm
+ * phòng của game khác. Nước đi được chuyển tiếp nguyên vẹn (opaque) nên
+ * thêm game mới không phải sửa server.
+ *
+ * Giao thức: xem comment đầu file web-game/assets/net.js
  */
 const http = require("http");
 const fs = require("fs");
@@ -145,6 +149,14 @@ function makeCode() {
   return code;
 }
 
+/** Mã game đang dùng chung relay: caro | chess | xiangqi */
+const GAMES = ["caro", "chess", "xiangqi"];
+
+function normalizeGame(value) {
+  const g = String(value || "caro").toLowerCase();
+  return GAMES.includes(g) ? g : "caro";
+}
+
 function send(ws, payload) {
   if (ws && ws.readyState === ws.OPEN) {
     ws.send(JSON.stringify(payload));
@@ -186,20 +198,36 @@ wss.on("connection", (ws) => {
     if (msg.t === "create") {
       leaveRoom(ws);
       const code = makeCode();
-      const room = { players: [ws], host: ws, turnTime: normalizeTurnTime(msg.turnTime) };
+      const room = {
+        players: [ws],
+        host: ws,
+        game: normalizeGame(msg.game),
+        turnTime: normalizeTurnTime(msg.turnTime),
+      };
       rooms.set(code, room);
       ws._room = code;
       ws._player = 1;
-      send(ws, { t: "created", room: code, player: 1, turnTime: room.turnTime });
+      send(ws, {
+        t: "created",
+        room: code,
+        player: 1,
+        game: room.game,
+        turnTime: room.turnTime,
+      });
       return;
     }
 
     if (msg.t === "join") {
       const code = String(msg.room || "").toUpperCase().trim();
+      const game = normalizeGame(msg.game);
       const room = rooms.get(code);
 
       if (!room) {
         send(ws, { t: "error", message: "Không tìm thấy phòng" });
+        return;
+      }
+      if (room.game !== game) {
+        send(ws, { t: "error", message: "Phòng này thuộc game khác" });
         return;
       }
       if (room.players.length >= 2) {
@@ -212,7 +240,13 @@ wss.on("connection", (ws) => {
       ws._room = code;
       ws._player = 2;
 
-      send(ws, { t: "joined", room: code, player: 2, turnTime: room.turnTime });
+      send(ws, {
+        t: "joined",
+        room: code,
+        player: 2,
+        game: room.game,
+        turnTime: room.turnTime,
+      });
       broadcast(room, { t: "peer", online: true });
       return;
     }
@@ -221,7 +255,18 @@ wss.on("connection", (ws) => {
     if (!room) return;
 
     if (msg.t === "move") {
-      broadcast(room, { t: "move", index: msg.index, player: msg.player }, ws);
+      // Nước đi là dữ liệu riêng của từng game → chuyển tiếp nguyên vẹn.
+      // `index` giữ lại để cờ caro (bản cũ) vẫn chạy được.
+      broadcast(
+        room,
+        {
+          t: "move",
+          move: msg.move === undefined ? null : msg.move,
+          index: msg.index,
+          player: ws._player,
+        },
+        ws
+      );
     } else if (msg.t === "restart") {
       broadcast(room, { t: "restart" }, ws);
     } else if (msg.t === "config") {
@@ -240,6 +285,6 @@ wss.on("connection", (ws) => {
 
 server.listen(PORT, () => {
   console.log(`Mini Game Hub  → http://localhost:${PORT}/`);
-  console.log(`Caro WebSocket → ws://localhost:${PORT}/ws`);
+  console.log(`Game WebSocket → ws://localhost:${PORT}/ws`);
   console.log(`Web root       → ${WEB_ROOT}`);
 });

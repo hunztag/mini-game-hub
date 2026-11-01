@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cờ Tướng 帥</title>
+  <link rel="stylesheet" href="../assets/shared.css" />
+  <link rel="stylesheet" href="../assets/online.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <a class="back-link" href="../index.html">← Chọn game</a>
+  <button id="sound-btn" class="sound-btn" aria-label="Bật/tắt âm thanh" aria-pressed="true" title="Bật/tắt âm thanh (M)">🔊</button>
+
+  <main class="app">
+    <header class="topbar">
+      <h1>Cờ Tướng</h1>
+      <p class="subtitle">Bắt Tướng hoặc làm đối phương hết nước đi · bàn 9×10</p>
+    </header>
+
+    <section class="panel">
+      <div class="modes" role="group" aria-label="Chế độ chơi">
+        <button class="mode active" data-mode="ai">Đấu với máy</button>
+        <button class="mode" data-mode="pvp">2 người chơi</button>
+        <button class="mode" data-mode="online">🌐 Online</button>
+      </div>
+
+      <div class="difficulty" id="difficulty">
+        <button class="diff" data-diff="easy">Dễ</button>
+        <button class="diff active" data-diff="normal">Thường</button>
+        <button class="diff" data-diff="hard">Khó</button>
+      </div>
+    </section>
+
+    <div class="online-panel hidden" id="online-panel">
+      <div class="online-row conn-row">
+        <span class="online-label">Kết nối</span>
+        <div class="conn-opts">
+          <button class="conn-btn active" data-conn="p2p" aria-pressed="true">⚡ P2P (không cần server)</button>
+          <button class="conn-btn" data-conn="ws" aria-pressed="false">🖥 Server riêng</button>
+        </div>
+      </div>
+
+      <div class="online-row hidden" id="server-row">
+        <label class="online-label" for="server-url">Server</label>
+        <input id="server-url" class="online-input" placeholder="wss://ten-app.onrender.com/ws" autocomplete="off" spellcheck="false" />
+      </div>
+
+      <div class="online-row">
+        <button id="create-room-btn" class="primary-btn sm">Tạo phòng</button>
+        <input id="room-input" class="online-input code" maxlength="5" placeholder="MÃ" aria-label="Mã phòng" autocomplete="off" spellcheck="false" />
+        <button id="join-room-btn" class="ghost-btn sm">Vào phòng</button>
+      </div>
+
+      <div class="online-row">
+        <button id="share-room-btn" class="ghost-btn sm hidden">📋 Copy link mời</button>
+        <button id="leave-room-btn" class="ghost-btn sm hidden">Rời phòng</button>
+      </div>
+
+      <p class="online-status" id="online-status" aria-live="polite">Đang chuẩn bị…</p>
+    </div>
+
+    <div class="turn-bar">
+      <div class="player active" id="p-red">
+        <span class="picon red">帥</span>
+        <span class="pname">Đỏ</span>
+        <span class="pts" id="score-red">0</span>
+      </div>
+
+      <div class="status" id="status">Lượt của Đỏ</div>
+
+      <div class="player right" id="p-black">
+        <span class="picon black">將</span>
+        <span class="pname">Đen</span>
+        <span class="pts" id="score-black">0</span>
+      </div>
+    </div>
+
+    <div class="time-bar">
+      <span class="time-label">⏱ Mỗi lượt</span>
+      <div class="time-opts" role="group" aria-label="Giới hạn thời gian mỗi lượt">
+        <button class="time-btn active" data-time="0" aria-pressed="true">Không</button>
+        <button class="time-btn" data-time="30" aria-pressed="false">30s</button>
+        <button class="time-btn" data-time="60" aria-pressed="false">60s</button>
+        <button class="time-btn" data-time="120" aria-pressed="false">120s</button>
+      </div>
+    </div>
+
+    <div class="clock idle" id="clock">
+      <div class="clock-fill" id="clock-fill"></div>
+      <span class="clock-text" id="clock-text">Không giới hạn · chọn 30s / 60s / 120s để bật</span>
+    </div>
+
+    <div class="board-wrap">
+      <div class="board" id="board" role="grid" aria-label="Bàn cờ tướng 9x10">
+        <div class="surface" id="surface">
+          <svg class="lines" viewBox="0 0 8 9" preserveAspectRatio="none" aria-hidden="true">
+            <g stroke="#f2dfb6" stroke-opacity="0.45" stroke-width="0.025" stroke-linecap="round">
+              <!-- hàng ngang -->
+              <line x1="0" y1="0" x2="8" y2="0" />
+              <line x1="0" y1="1" x2="8" y2="1" />
+              <line x1="0" y1="2" x2="8" y2="2" />
+              <line x1="0" y1="3" x2="8" y2="3" />
+              <line x1="0" y1="4" x2="8" y2="4" />
+              <line x1="0" y1="5" x2="8" y2="5" />
+              <line x1="0" y1="6" x2="8" y2="6" />
+              <line x1="0" y1="7" x2="8" y2="7" />
+              <line x1="0" y1="8" x2="8" y2="8" />
+              <line x1="0" y1="9" x2="8" y2="9" />
+              <!-- cột dọc: hai biên liền, các cột giữa đứt ở sông -->
+              <line x1="0" y1="0" x2="0" y2="9" />
+              <line x1="8" y1="0" x2="8" y2="9" />
+              <line x1="1" y1="0" x2="1" y2="4" /><line x1="1" y1="5" x2="1" y2="9" />
+              <line x1="2" y1="0" x2="2" y2="4" /><line x1="2" y1="5" x2="2" y2="9" />
+              <line x1="3" y1="0" x2="3" y2="4" /><line x1="3" y1="5" x2="3" y2="9" />
+              <line x1="4" y1="0" x2="4" y2="4" /><line x1="4" y1="5" x2="4" y2="9" />
+              <line x1="5" y1="0" x2="5" y2="4" /><line x1="5" y1="5" x2="5" y2="9" />
+              <line x1="6" y1="0" x2="6" y2="4" /><line x1="6" y1="5" x2="6" y2="9" />
+              <line x1="7" y1="0" x2="7" y2="4" /><line x1="7" y1="5" x2="7" y2="9" />
+              <!-- đường chéo cung Tướng -->
+              <line x1="3" y1="0" x2="5" y2="2" />
+              <line x1="5" y1="0" x2="3" y2="2" />
+              <line x1="3" y1="7" x2="5" y2="9" />
+              <line x1="5" y1="7" x2="3" y2="9" />
+            </g>
+          </svg>
+          <span class="river river-left">楚 河</span>
+          <span class="river river-right">漢 界</span>
+        </div>
+
+        <div id="overlay" class="overlay hidden">
+          <h2 id="overlay-title">Kết thúc</h2>
+          <p id="overlay-text"></p>
+          <button id="overlay-btn" class="primary-btn">Chơi lại</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="undo-btn" class="ghost-btn">↶ Hoàn tác</button>
+      <button id="restart-btn" class="ghost-btn">↺ Ván mới</button>
+    </div>
+
+    <p class="hint">
+      Nhấn vào quân để chọn, nhấn ô sáng để đi · <kbd>U</kbd> hoàn tác · <kbd>R</kbd> ván mới · <kbd>M</kbd> âm thanh<br />
+      Cờ tướng: hết nước đi là thua, hai Tướng không được lộ mặt
+    </p>
+  </main>
+
+  <script src="../assets/audio.js"></script>
+  <script src="../assets/clock.js"></script>
+  <script src="../assets/net.js"></script>
+  <script src="../assets/p2p.js"></script>
+  <script src="../assets/online.js"></script>
+  <script src="engine.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
