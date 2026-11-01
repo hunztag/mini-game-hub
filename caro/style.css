@@ -163,6 +163,61 @@ body {
   text-transform: uppercase;
 }
 
+/* Chọn kiểu kết nối: P2P (không cần server) hay relay WebSocket */
+.online-row.conn-row {
+  flex-wrap: wrap;
+}
+
+.online-row.hidden {
+  display: none;
+}
+
+.conn-opts {
+  display: flex;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: 0;
+  padding: 0.25rem;
+  border-radius: 12px;
+  background: rgba(2, 6, 23, 0.7);
+  border: 1px solid var(--line);
+}
+
+.conn-btn {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.42rem 0.5rem;
+  border-radius: 9px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--muted);
+  background: transparent;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.conn-btn:hover {
+  color: var(--text);
+}
+
+.conn-btn.active {
+  color: #04121a;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  box-shadow: 0 4px 14px rgba(34, 211, 238, 0.3);
+}
+
+.conn-hint {
+  margin: 0;
+  font-size: 0.68rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
 .primary-btn.sm,
 .ghost-btn.sm {
   flex: 0 0 auto;

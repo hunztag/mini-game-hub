@@ -49,6 +49,7 @@
   const clockText = document.getElementById("clock-text");
 
   const onlinePanel = document.getElementById("online-panel");
+  const serverRow = document.getElementById("server-row");
   const serverInput = document.getElementById("server-url");
   const roomInput = document.getElementById("room-input");
   const createRoomBtn = document.getElementById("create-room-btn");
@@ -56,8 +57,26 @@
   const shareRoomBtn = document.getElementById("share-room-btn");
   const leaveRoomBtn = document.getElementById("leave-room-btn");
   const onlineStatusEl = document.getElementById("online-status");
+  const connBtns = document.querySelectorAll(".conn-btn");
 
-  const NET = window.CaroNet || null;
+  // Hai transport: P2P (không cần server) và WebSocket (relay riêng)
+  const WS_NET = window.CaroNet || null;
+  const P2P_NET = window.CaroP2P || null;
+  const CONN_KEY = "caro-conn-kind";
+
+  /** Host tĩnh (GitHub Pages, Netlify…) không chạy được WebSocket → mặc định P2P */
+  function defaultConnKind() {
+    try {
+      const saved = localStorage.getItem(CONN_KEY);
+      if (saved === "ws" || saved === "p2p") return saved;
+    } catch {
+      /* bỏ qua */
+    }
+    return P2P_NET ? "p2p" : "ws";
+  }
+
+  let connKind = defaultConnKind();
+  let NET = connKind === "p2p" ? P2P_NET : WS_NET; // transport đang dùng
 
   // ---------- Trạng thái ----------
   let board = new Uint8Array(SIZE * SIZE);
@@ -747,25 +766,42 @@
     return typed || defaultServerUrl();
   }
 
-  /** Gợi ý thêm khi kết nối thất bại (hay gặp nhất: host tĩnh như GitHub Pages) */
+  /** Host tĩnh (GitHub Pages, Netlify…) không chạy được WebSocket */
+  function isStaticHost() {
+    return /(^|\.)(github\.io|gitlab\.io|netlify\.app|vercel\.app|pages\.dev|web\.app)$/i.test(
+      location.hostname
+    );
+  }
+
+  /** Gợi ý thêm khi kết nối thất bại */
   function explainConnectError(err) {
     const msg = (err && err.message) || String(err);
-    if (/(^|\.)github\.io$/i.test(location.hostname)) {
-      return `${msg}. GitHub Pages chỉ chứa file tĩnh, không chạy được WebSocket — hãy deploy thêm thư mục server/ (xem README mục 4) rồi dán địa chỉ wss://… vào ô Server trên.`;
-    }
-    return msg;
+    if (connKind === "p2p" || !isStaticHost()) return msg;
+    return `${msg}. Trang này chạy trên host tĩnh nên không có WebSocket — bấm «⚡ P2P (không cần server)» ở trên để chơi online ngay, không cần deploy gì.`;
   }
 
   async function ensureConnected() {
-    if (!NET) throw new Error("Chưa tải net.js — không chơi online được");
+    if (!NET) {
+      throw new Error(
+        connKind === "p2p"
+          ? "Chưa tải được p2p.js — không chơi online được."
+          : "Chưa tải net.js — không chơi online được."
+      );
+    }
     if (NET.isOnline) return;
-    setOnlineStatus("Đang kết nối…");
+    setOnlineStatus(connKind === "p2p" ? "Đang chuẩn bị kết nối P2P…" : "Đang kết nối…");
     try {
       await NET.connect(currentServerUrl());
     } catch (err) {
       throw new Error(explainConnectError(err));
     }
-    localStorage.setItem(SERVER_STORAGE_KEY, currentServerUrl());
+    if (connKind === "ws") {
+      try {
+        localStorage.setItem(SERVER_STORAGE_KEY, currentServerUrl());
+      } catch {
+        /* trình duyệt chặn localStorage thì bỏ qua */
+      }
+    }
   }
 
   function resetOnlineState() {
@@ -779,6 +815,48 @@
     const inRoom = Boolean(netRoom);
     shareRoomBtn.classList.toggle("hidden", !inRoom);
     leaveRoomBtn.classList.toggle("hidden", !inRoom);
+  }
+
+  /**
+   * Đổi kiểu kết nối.
+   * @param {"p2p"|"ws"} kind
+   * @param {{silent?: boolean}} [options] silent: không đổi thông báo trạng thái
+   */
+  function applyConnKind(kind, options) {
+    const silent = Boolean(options && options.silent);
+    let next = kind === "ws" ? "ws" : "p2p";
+
+    if (next === "p2p" && !P2P_NET) next = "ws"; // thiếu file p2p.js → quay về WebSocket
+
+    if (NET) NET.disconnect();
+    resetOnlineState();
+    updateRoomButtons();
+
+    connKind = next;
+    NET = connKind === "p2p" ? P2P_NET : WS_NET;
+    try {
+      localStorage.setItem(CONN_KEY, connKind);
+    } catch {
+      /* bỏ qua */
+    }
+
+    for (const btn of connBtns) {
+      const on = btn.dataset.conn === connKind;
+      btn.classList.toggle("active", on);
+      btn.setAttribute("aria-pressed", on ? "true" : "false");
+    }
+    if (serverRow) serverRow.classList.toggle("hidden", connKind !== "ws");
+
+    if (silent) return;
+
+    restart(false);
+    if (connKind === "p2p") {
+      setOnlineStatus(
+        "P2P: không cần server. Bấm «Tạo phòng» rồi gửi mã (hoặc link mời) cho bạn — hai máy nối trực tiếp với nhau."
+      );
+    } else {
+      setOnlineStatus(`Server riêng: đang dùng ${currentServerUrl()}`);
+    }
   }
 
   function buildInviteLink() {
@@ -870,10 +948,11 @@
     }
   }
 
-  function setupNetListeners() {
-    if (!NET) return;
+  /** Gắn toàn bộ listener lên một transport (dùng chung cho WS và P2P) */
+  function bindNetListeners(transport) {
+    if (!transport) return;
 
-    NET.on("peer", (online) => {
+    transport.on("peer", (online) => {
       peerOnline = online;
       if (netRoom) {
         setOnlineStatusHtml(
@@ -889,14 +968,14 @@
       paintTurnGhosts();
     });
 
-    NET.on("move", ({ index, player }) => applyRemoteMove(index, player));
+    transport.on("move", ({ index, player }) => applyRemoteMove(index, player));
 
-    NET.on("restart", () => {
+    transport.on("restart", () => {
       restart(false);
       setOnlineStatusHtml(`Đối thủ xin ván mới · phòng <b>${netRoom}</b>`, "ok");
     });
 
-    NET.on("config", (value) => {
+    transport.on("config", (value) => {
       if (typeof value !== "number") return;
       saveTurnTime(value);
       timeLeftMs = turnTime > 0 ? turnTime * 1000 : 0;
@@ -910,22 +989,32 @@
       );
     });
 
-    NET.on("timeout", (seat) => applyRemoteTimeout(seat));
+    transport.on("timeout", (seat) => applyRemoteTimeout(seat));
 
-    NET.on("close", () => {
+    transport.on("close", () => {
       // Chưa vào phòng thì để nguyên thông báo lỗi kết nối (có gợi ý cách sửa),
       // tránh việc "Mất kết nối" ghi đè lên hướng dẫn vừa hiện ra.
       const wasInRoom = Boolean(netRoom);
       resetOnlineState();
       updateRoomButtons();
-      if (wasInRoom) setOnlineStatus("Mất kết nối tới server.", "err");
+      if (wasInRoom) {
+        setOnlineStatus(
+          connKind === "p2p" ? "Đối thủ đã ngắt kết nối." : "Mất kết nối tới server.",
+          "err"
+        );
+      }
       updateTurnUi();
       paintTurnGhosts();
     });
 
-    NET.on("error", (message) => {
+    transport.on("error", (message) => {
       setOnlineStatus(`Lỗi: ${message}`, "err");
     });
+  }
+
+  function setupNetListeners() {
+    bindNetListeners(WS_NET);
+    if (P2P_NET && P2P_NET !== WS_NET) bindNetListeners(P2P_NET);
   }
 
   function setMode(next) {
@@ -939,18 +1028,29 @@
     onlinePanel.classList.toggle("hidden", mode !== "online");
 
     if (mode === "online") {
+      applyConnKind(connKind, { silent: true });
       if (!serverInput.value) {
-        serverInput.value = localStorage.getItem(SERVER_STORAGE_KEY) || "";
+        try {
+          serverInput.value = localStorage.getItem(SERVER_STORAGE_KEY) || "";
+        } catch {
+          /* bỏ qua */
+        }
       }
       if (!NET) {
-        setOnlineStatus("Không tìm thấy net.js — chỉ chơi offline được.", "err");
+        setOnlineStatus("Thiếu file net.js / p2p.js — chỉ chơi offline được.", "err");
       } else if (netRoom) {
         setOnlineStatusHtml(
           `Đang ở phòng <b>${netRoom}</b>${peerOnline ? " · đối thủ đã vào" : " · chờ đối thủ"}`,
           "ok"
         );
+      } else if (connKind === "p2p") {
+        setOnlineStatus(
+          "P2P: bấm «Tạo phòng» rồi gửi mã cho bạn, hoặc nhập mã để vào phòng. Không cần server."
+        );
       } else {
-        setOnlineStatus("Bấm «Tạo phòng» rồi gửi mã cho bạn, hoặc nhập mã để vào phòng.");
+        setOnlineStatus(
+          `Server riêng: nhập địa chỉ WebSocket đang chạy (hiện tại ${currentServerUrl()}), rồi tạo/vào phòng.`
+        );
       }
     } else {
       resetOnlineState();
@@ -995,6 +1095,16 @@
     SFX.click();
     leaveRoom();
   });
+
+  for (const btn of connBtns) {
+    btn.addEventListener("click", () => {
+      if (btn.dataset.conn === connKind) return;
+      SFX.click();
+      applyConnKind(btn.dataset.conn);
+      updateTurnUi();
+      paintTurnGhosts();
+    });
+  }
 
   roomInput.addEventListener("input", () => {
     roomInput.value = roomInput.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 5);
@@ -1090,10 +1200,16 @@
     updateTurnUi();
     paintTurnGhosts();
     setupNetListeners();
+    applyConnKind(connKind, { silent: true });
 
     if (serverInput) {
       serverInput.placeholder = defaultServerUrl();
-      const saved = localStorage.getItem(SERVER_STORAGE_KEY);
+      let saved = "";
+      try {
+        saved = localStorage.getItem(SERVER_STORAGE_KEY) || "";
+      } catch {
+        /* bỏ qua */
+      }
       if (saved) serverInput.value = saved;
     }
 

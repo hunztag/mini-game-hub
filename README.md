@@ -40,8 +40,9 @@ web-game/
 │   ├── style.css
 │   ├── script.js       # Luật chơi + giao diện
 │   ├── ai.js           # Máy đánh cờ (easy / normal / hard)
-│   └── net.js          # Lớp mạng cho chế độ online
-└── server/             # Server Node.js: web tĩnh + relay online
+│   ├── net.js          # Online qua relay WebSocket (tuỳ chọn)
+│   └── p2p.js          # Online ngang hàng WebRTC — KHÔNG cần server
+└── server/             # Server Node.js: web tĩnh + relay online (tuỳ chọn)
     ├── package.json
     ├── server.js
     └── _test-relay.js  # Script kiểm thử giao thức
@@ -49,11 +50,12 @@ web-game/
 
 ## Cách chạy trên máy
 
-**Cách 1 — mở trực tiếp (chơi offline)**
+**Cách 1 — mở trực tiếp (chơi offline + online P2P)**
 
 Double-click `web-game/index.html`. Mọi game chạy được vì không dùng ES modules.
+Chế độ online **⚡ P2P** cũng chạy được ngay, không cần server (cần mạng Internet).
 
-**Cách 2 — chạy server Node.js (có luôn chơi online)**
+**Cách 2 — chạy server Node.js (có thêm relay WebSocket)**
 
 ```powershell
 cd web-game/server
@@ -122,7 +124,7 @@ Trên điện thoại: dùng các nút mũi tên bên dưới bàn chơi hoặc 
 - Đổi lúc nào cũng được, áp dụng ngay cho lượt hiện tại; lựa chọn được nhớ trong `localStorage` (`caro-turn-time`).
 - Khi **online**, giới hạn do người tạo phòng quyết định; đổi giới hạn sẽ được báo cho đối thủ, và chỉ chính người hết giờ mới gửi tín hiệu `timeout` để hai bên không lệch kết quả.
 
-**Chơi online:** chọn `🌐 Online` → **Tạo phòng** → **📋 Copy link mời** → gửi link cho bạn. Người mở link được tự động vào phòng và cầm quân Trắng.
+**Chơi online:** chọn `🌐 Online` → giữ nút **⚡ P2P** (mặc định, không cần server) → **Tạo phòng** → **📋 Copy link mời** → gửi link cho bạn. Người mở link được tự động vào phòng và cầm quân Trắng. Nếu mạng chặn P2P thì bấm **🖥 Server riêng** và deploy `server/` (xem mục *Chơi online với bạn*).
 
 ## Cách thêm game mới
 
@@ -153,9 +155,30 @@ Trên điện thoại: dùng các nút mũi tên bên dưới bàn chơi hoặc 
 
 ## Chơi online với bạn
 
-Chế độ **🌐 Online** trong cờ caro hoạt động theo mô hình: **client tĩnh** (đưa lên web) + **relay server** (WebSocket) chuyển nước đi giữa 2 người. Server **không** chứa luật chơi — mỗi máy tự tính, server chỉ chuyển tiếp, nên rất nhẹ và chống được sửa luật từ client ở mức cơ bản.
+Bảng **🌐 Online** trong cờ caro có **2 kiểu kết nối** — bấm nút tương ứng ở hàng «Kết nối»:
 
-### 1. Bật server local
+| Kiểu | Cần gì | Khi nào dùng |
+|---|---|---|
+| **⚡ P2P (không cần server)** | Chỉ cần mạng Internet | Mặc định. Chạy được trên **GitHub Pages**, Vercel static, Netlify… vì hai máy nói chuyện trực tiếp với nhau qua WebRTC (thư viện PeerJS nạp từ CDN, broker công khai chỉ dùng để "bắt cặp"). |
+| **🖥 Server riêng** | Một tiến trình Node chạy `server/server.js` | Khi muốn relay ổn định, chơi trong LAN không có Internet, hoặc mạng chặn WebRTC. Nhập địa chỉ `ws://…` / `wss://…` vào ô **Server**. |
+
+Cả hai kiểu dùng **chung một giao thức tin nhắn** (`move`, `restart`, `config`, `timeout`, `peer`) nên luật chơi và đồng hồ hoạt động y hệt nhau.
+
+### Cách dùng nhanh (P2P — không cần deploy gì)
+
+1. Mở trang caro (local hay `https://<tên-bạn>.github.io/mini-game-hub/caro/` đều được).
+2. Chọn `🌐 Online` → giữ nút **⚡ P2P** → bấm **Tạo phòng** → nhận mã 5 ký tự (ví dụ `K7M2Q`).
+3. Bấm **📋 Copy link mời** → gửi link (`.../caro/?room=K7M2Q`) cho bạn.
+4. Bạn mở link là **tự động vào phòng**; người tạo cầm **Đen** (đi trước), người vào sau cầm **Trắng**.
+5. Đổi mức thời gian (30s / 60s / 120s) ở bên tạo phòng sẽ được báo cho đối thủ.
+
+> P2P phụ thuộc broker công khai của PeerJS và cần WebRTC. Nếu mạng công ty/trường chặn P2P, hãy chuyển sang **🖥 Server riêng**.
+
+### Chế độ Server riêng (relay WebSocket)
+
+Mô hình: **client tĩnh** + **relay server** (WebSocket) chuyển nước đi giữa 2 người. Server **không** chứa luật chơi — mỗi máy tự tính, server chỉ chuyển tiếp, nên rất nhẹ.
+
+#### 1. Bật server local
 
 ```powershell
 cd web-game/server
@@ -172,20 +195,20 @@ Server này phục vụ luôn file web tĩnh (thư mục `web-game`) ở cổng 
 - `GET /healthz` → `{"ok":true,"rooms":0}`
 - `WS /ws` → relay chơi online
 
-### 2. Thử chơi online
+### 2. Thử chơi online (kiểu Server riêng)
 
-1. Mở `http://localhost:8080/caro/` trên **hai tab** (hoặc hai máy trong cùng mạng LAN dùng `http://<IP-máy-bạn>:8080/caro/`).
-2. Tab A: chọn `🌐 Online` → bấm **Tạo phòng** → nhận mã 5 ký tự (ví dụ `K7M2Q`).
-3. Bấm **📋 Copy link mời** → dán link đó cho bạn (dạng `.../caro/?room=K7M2Q`).
+1. Trong bảng Online, bấm **🖥 Server riêng** rồi kiểm tra ô **Server** (mặc định đã đúng khi mở cùng domain).
+2. Mở `http://localhost:8080/caro/` trên **hai tab** (hoặc hai máy trong cùng mạng LAN dùng `http://<IP-máy-bạn>:8080/caro/`).
+3. Tab A: bấm **Tạo phòng** → nhận mã 5 ký tự (ví dụ `K7M2Q`) → **📋 Copy link mời** → dán link cho bạn.
 4. Bạn của bạn mở link là **tự động vào phòng**, không cần nhập mã.
 5. Tab A cầm **Đen** (đi trước), người vào sau cầm **Trắng**. Hai bên tự thấy nước đi của nhau.
 
-Ô **Server** trong bảng online cho phép đổi địa chỉ relay server; giá trị được ghi nhớ trong `localStorage` (`caro-server-url`). Mặc định:
+Ô **Server** cho phép đổi địa chỉ relay; giá trị được ghi nhớ trong `localStorage` (`caro-server-url`). Mặc định:
 
 - mở bằng `file://` → `ws://localhost:8080/ws`
 - mở bằng `http://` hoặc `https://` → cùng host với trang (`ws://` hoặc `wss://` + `/ws`)
 
-### 3. Giao thức (đã cài sẵn trong `caro/net.js`)
+### 3. Giao thức (giống nhau cho cả `caro/net.js` và `caro/p2p.js`)
 
 | Client → Server | Server → Client | Ý nghĩa |
 |---|---|---|
@@ -198,16 +221,22 @@ Server này phục vụ luôn file web tĩnh (thư mục `web-game`) ở cổng 
 | `{t:"timeout"}` | `{t:"timeout", player}` | Người đến lượt báo đã hết giờ (server tự điền ghế thật) |
 | — | `{t:"error", message}` | Phòng không tồn tại / đã đủ |
 
-Dùng `net.js`:
+Dùng `net.js` (Server riêng) hoặc `p2p.js` (P2P) — **API giống hệt nhau**:
 
 ```js
+// Server riêng
 await CaroNet.connect("wss://ten-server-cua-ban.onrender.com/ws");
 const { room, player, turnTime } = await CaroNet.createRoom(60); // player = 1 | 2
+
+// P2P (không cần server)
+await CaroP2P.connect();
+const { room, player } = await CaroP2P.createRoom(60);
+
+// Sự kiện dùng chung
 CaroNet.on("move", ({ index, player }) => applyRemoteMove(index, player));
 CaroNet.on("peer", (online) => { /* cập nhật trạng thái */ });
 CaroNet.on("config", (seconds) => { /* đối thủ đổi giới hạn thời gian */ });
 CaroNet.on("timeout", (seat) => { /* đối thủ hết giờ */ });
-CaroNet.sendMove(index, player);
 ```
 
 ### 4. Đưa web lên Internet
@@ -256,7 +285,7 @@ Sau khi deploy, mở `https://ten-app.onrender.com/` là vào trang chủ chọn
 
 Khi tách riêng, nhập địa chỉ relay server vào ô **Server** trong bảng Online (giá trị được ghi nhớ trong `localStorage`).
 
-> 💡 **GitHub Pages chỉ phục vụ file tĩnh** — Rắn và Caro (đấu với máy / 2 người cùng máy) chạy tốt, nhưng **Caro online cần relay WebSocket**. Muốn chơi online thì deploy thêm `server/` lên Render, rồi dán `wss://ten-app.onrender.com/ws` vào ô **Server**. Nếu quên, trang sẽ nhắc đúng việc cần làm.
+> 💡 **GitHub Pages / Netlify / Vercel static không chạy được WebSocket** — nhưng **không sao**: cờ caro online mặc định dùng **⚡ P2P (WebRTC)**, nên chỉ cần host tĩnh là chơi online được, không phải deploy `server/`. Chỉ khi mạng chặn P2P mới cần deploy thêm `server/` rồi chuyển sang **🖥 Server riêng**.
 
 > ⚠️ **Chỉ deploy thư mục `web-game/`** (hoặc copy nó sang một repo riêng). Đừng push cả thư mục cha lên GitHub — thư mục cha còn chứa các file khác không liên quan tới game.
 >
@@ -296,6 +325,10 @@ Script `_test-relay.js` giả lập 2 client và kiểm tra: tạo phòng → v�
 | Đồng hồ online: đổi giới hạn (`config`) | ✅ cả hai bên đổi theo, có thông báo |
 | Đồng hồ online: một bên hết giờ | ✅ bên hết giờ thấy “Bạn hết giờ”, bên kia thấy “Đối thủ hết giờ” (không lệch kết quả) |
 | Đối thủ rời phòng | ✅ hiện “Đối thủ đã rời phòng”, khoá bàn chờ người mới |
+| **P2P (WebRTC): tạo phòng → vào phòng → 2 chiều** | ✅ chạy không cần server, mã phòng = Peer ID rút gọn |
+| **P2P: đổi giới hạn thời gian / restart / hết giờ** | ✅ đồng bộ y như relay WebSocket |
+| **P2P: đối thủ đóng tab** | ✅ hiện “Đối thủ đã rời phòng …” |
+| **Chuyển qua lại ⚡ P2P ↔ 🖥 Server riêng** | ✅ nhớ lựa chọn trong `localStorage` (`caro-conn-kind`) |
 | Mở link mời `?room=CODE` | ✅ tự vào phòng |
 | Chặn `../` (path traversal) | ✅ trả 403 |
 | Chặn truy cập `/server/**` (mã nguồn, `node_modules`) | ✅ trả 403 |
