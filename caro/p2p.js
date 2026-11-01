@@ -212,12 +212,40 @@ window.CaroP2P = (() => {
       if (conn !== c) return;
       conn = null;
       peerOnline = false;
-      emit("peer", false);
+      if (isHost) {
+        // Chủ phòng vẫn giữ mã phòng → có thể chờ người khác vào
+        emit("peer", false);
+      } else {
+        // Người vào phòng: chủ phòng đóng là phòng không còn → thoát phòng
+        room = null;
+        player = 0;
+        peerOnline = false;
+        try {
+          if (peer) peer.destroy();
+        } catch {
+          /* bỏ qua */
+        }
+        peer = null;
+        emit("close");
+      }
     });
 
     c.on("error", () => {
       /* lỗi lẻ tẻ trên DataChannel — đóng kết nối sẽ báo qua "close" */
     });
+  }
+
+  /** Chủ phòng chỉ nhận 1 đối thủ: người thứ ba bị từ chối cho tới khi người cũ rời */
+  function onIncoming(c) {
+    if (conn && conn !== c) {
+      try {
+        c.close();
+      } catch {
+        /* bỏ qua */
+      }
+      return;
+    }
+    attachConn(c);
   }
 
   /** P2P không cần "kết nối trước", chỉ cần thư viện sẵn sàng */
@@ -251,8 +279,16 @@ window.CaroP2P = (() => {
     room = code;
     peerOnline = false;
 
-    p.on("connection", (c) => attachConn(c));
+    p.on("connection", onIncoming);
     p.on("error", (err) => emit("error", friendly(err)));
+    // Broker có thể ngắt kết nối tạm thời → thử nối lại để giữ phòng
+    p.on("disconnected", () => {
+      try {
+        p.reconnect();
+      } catch {
+        /* bỏ qua */
+      }
+    });
 
     return { room, player, turnTime: hostTurnTime };
   }
@@ -264,7 +300,7 @@ window.CaroP2P = (() => {
       .replace(/[^A-Z0-9]/g, "")
       .slice(0, CODE_LEN);
 
-    if (target.length < 4) throw new Error("Mã phòng phải có 5 ký tự.");
+    if (target.length < 4) throw new Error("Mã phòng phải có 5 ký tự (ví dụ K7M2Q).");
 
     disconnect();
 
@@ -333,7 +369,9 @@ window.CaroP2P = (() => {
 
     p.on("error", (err) => emit("error", friendly(err)));
 
-    return { room, player, turnTime: 0 }; // turnTime thật sẽ tới qua sự kiện "config"
+    // turnTime thật do chủ phòng gửi qua sự kiện "config" ngay khi kết nối mở.
+    // Trả về undefined để phía script.js không ghi đè bằng giá trị 0 sai lệch.
+    return { room, player, turnTime: undefined };
   }
 
   function disconnect() {

@@ -934,7 +934,9 @@
       restart(false);
       updateRoomButtons();
       setOnlineStatusHtml(
-        `Đã vào phòng <b>${netRoom}</b> · bạn là ${nameOf(colorOfSeat(myPlayer))}`,
+        `Đã vào phòng <b>${netRoom}</b> · bạn là ${nameOf(colorOfSeat(myPlayer))} · ${
+          turnTime ? `giới hạn <b>${turnTime}s</b>/lượt` : "không giới hạn thời gian"
+        }`,
         "ok"
       );
     } catch (err) {
@@ -981,10 +983,12 @@
       timeLeftMs = turnTime > 0 ? turnTime * 1000 : 0;
       clockKey = "";
       updateTurnUi();
+      // Còn đang vào phòng thì để joinRoom() tự báo, tránh ghi đè thông báo
+      if (!netRoom) return;
       setOnlineStatusHtml(
-        turnTime
-          ? `Đối thủ đặt giới hạn <b>${turnTime}s</b> mỗi lượt`
-          : "Đối thủ đã tắt giới hạn thời gian",
+        `Phòng <b>${netRoom}</b> · bạn là ${nameOf(colorOfSeat(myPlayer))} · ${
+          turnTime ? `giới hạn <b>${turnTime}s</b>/lượt` : "không giới hạn thời gian"
+        }`,
         "ok"
       );
     });
@@ -995,13 +999,20 @@
       // Chưa vào phòng thì để nguyên thông báo lỗi kết nối (có gợi ý cách sửa),
       // tránh việc "Mất kết nối" ghi đè lên hướng dẫn vừa hiện ra.
       const wasInRoom = Boolean(netRoom);
+      const wasGuest = myPlayer === 2;
       resetOnlineState();
       updateRoomButtons();
       if (wasInRoom) {
-        setOnlineStatus(
-          connKind === "p2p" ? "Đối thủ đã ngắt kết nối." : "Mất kết nối tới server.",
-          "err"
-        );
+        if (connKind === "p2p") {
+          setOnlineStatus(
+            wasGuest
+              ? "Chủ phòng đã đóng phòng. Nhập mã khác hoặc bấm «Tạo phòng»."
+              : "Đối thủ đã ngắt kết nối.",
+            "err"
+          );
+        } else {
+          setOnlineStatus("Mất kết nối tới server.", "err");
+        }
       }
       updateTurnUi();
       paintTurnGhosts();
@@ -1053,7 +1064,10 @@
         );
       }
     } else {
+      // Rời chế độ online → phải đóng kết nối, nếu không peer vẫn treo
+      if (NET) NET.disconnect();
       resetOnlineState();
+      updateRoomButtons();
     }
 
     restart(false);
