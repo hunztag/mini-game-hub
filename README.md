@@ -12,7 +12,7 @@ Mở `web-game/index.html` bằng trình duyệt là chơi được ngay.
 | ⚫ Cờ caro | ✅ Sẵn sàng | Bàn 15×15, đấu máy (3 độ khó), 2 người, **online** (mã phòng) |
 | ♟️ Cờ vua | ✅ Sẵn sàng | Bàn 8×8, đủ luật (phong cấp, nhập thành, bắt tốt qua đường), đấu máy (3 độ khó), 2 người, **online** |
 | 🏮 Cờ tướng | ✅ Sẵn sàng | Bàn 9×10 có sông và cung, đấu máy (3 độ khó), 2 người, **online** |
-| ⚡ Phản Xạ Ngoại Ngữ | ✅ Sẵn sàng | Đọc tiếng Việt → gõ ngoại ngữ trước khi hết giờ, 3 cấp độ × 3 màn, 7 kiểu câu hỏi, dễ thêm ngôn ngữ mới |
+| ⚡ Phản Xạ Ngoại Ngữ | ✅ Sẵn sàng | 2 chế độ: **Học** 12 chủ đề · 336 từ/câu (đánh dấu đã thuộc) và **Chơi** phản xạ 3 cấp độ × 3 màn, 7 kiểu câu hỏi, dễ thêm ngôn ngữ mới |
 | 🔢 2048 | 🚧 Sắp có | — |
 | 🃏 Lật thẻ | 🚧 Sắp có | — |
 
@@ -65,8 +65,9 @@ web-game/
 ├── reflex/             # ⚡ Phản Xạ Ngoại Ngữ
 │   ├── index.html
 │   ├── style.css
-│   ├── data.js         # ⭐ Nội dung: ngôn ngữ, cấp độ, màn, câu hỏi
-│   └── script.js       # Luật chơi: đồng hồ, tính điểm, mạng, mở khoá màn
+│   ├── data.js         # ⭐ Nội dung chơi: ngôn ngữ, cấp độ, màn, câu hỏi
+│   ├── lessons.js      # ⭐ Nội dung học: 12 chủ đề × 3 cấp độ (336 từ/câu)
+│   └── script.js       # Luật chơi: đồng hồ, tính điểm, mạng, mở khoá màn, chế độ Học
 └── server/             # Server Node.js: web tĩnh + relay online (tuỳ chọn)
     ├── package.json
     ├── server.js
@@ -204,9 +205,43 @@ Hiện từ / câu bằng **tiếng Việt**, bạn phải gõ đáp án bằng 
 | `choice` | Câu hỏi + 4 lựa chọn | Bấm đáp án đúng |
 | `listen` | Phát âm bằng giọng máy (🔊) | Nghe rồi gõ lại |
 
-**Phím tắt**: `Enter` gửi câu trả lời · `Tab` tới nút Gợi ý · `Esc` về chọn màn.
+**Phím tắt**: `Enter` gửi câu trả lời · `Tab` tới nút Gợi ý · `Esc` về chọn màn (trong phần Học: `Esc` lùi từng bước Chủ đề → Danh sách chủ đề → menu).
 
-**localStorage**: `reflex-progress` (điểm kỷ lục + màn đã qua), `reflex-lang` (ngôn ngữ đang chọn), `reflex-last` (vị trí chơi gần nhất).
+**localStorage**: `reflex-progress` (điểm kỷ lục + màn đã qua), `reflex-lang` (ngôn ngữ đang chọn), `reflex-last` (vị trí chơi gần nhất), `reflex-learned` (các mục đã thuộc), `reflex-study` (chủ đề / cấp độ / ẩn nghĩa gần nhất).
+
+### 📚 Học từ vựng theo chủ đề
+
+Tab **📚 Học từ vựng** mở thư viện từ vựng song ngữ (Anh ↔ Việt) để học trước, rồi luyện lại bằng chính bộ từ đó.
+
+- **12 chủ đề**: Gia đình · Giao tiếp hằng ngày · Trường học & học tập · Công việc & văn phòng · Môi trường & thiên nhiên · Du lịch & di chuyển · Ẩm thực & nhà hàng · Sức khỏe & cơ thể · Công nghệ & internet · Cảm xúc & tính cách · Mua sắm & tiền · Thể thao & giải trí.
+- Mỗi chủ đề có **3 cấp độ**: `Cơ bản` (10 từ) · `Trung cấp` (10 từ) · `Nâng cao` (8 câu) → **28 mục/chủ đề, 336 mục** tổng cộng.
+- Thẻ từ hiển thị **tiếng Anh**, **phiên âm IPA** và **nghĩa tiếng Việt**.
+- Bấm vào thẻ để **ẩn / hiện nghĩa** từng thẻ; bấm **🙈 Ẩn nghĩa** để ẩn toàn bộ (chế độ tự kiểm tra).
+- **🔊** đọc to từ/câu bằng giọng máy; **✓** đánh dấu **đã thuộc** (lưu vào `reflex-learned`, thanh tiến độ và % từng chủ đề cập nhật ngay).
+- **🔍 Tìm kiếm** theo cả tiếng Anh lẫn tiếng Việt (không cần dấu).
+- **✓ Đánh dấu đã thuộc tất cả** / **↺ Bỏ đánh dấu tất cả** cho nhanh.
+- **🎯 Luyện chủ đề này**: tạo ngay một lượt chơi 12 câu từ đúng cấp độ đang học (20s / 15s / 11s mỗi câu) — câu hỏi tự trộn kiểu *gõ từ*, *gõ câu* và *chọn đáp án*; kết thúc có `↺ Luyện lại` và `← Về phần Học`.
+- **🔀 Luyện tổng hợp 12 chủ đề**: trộn ngẫu nhiên từ vựng của cả 12 chủ đề.
+- Lượt luyện theo chủ đề **không** ảnh hưởng điểm kỷ lục / màn đã mở của chế độ Chơi.
+
+### Thêm chủ đề / từ vựng mới
+
+Mở `reflex/lessons.js` và thêm một object vào mảng `topics`:
+
+```js
+T("music", "🎵", "Âm nhạc", "Nhạc cụ, thể loại, ca sĩ", [
+  L("basic", "Cơ bản", [
+    e("guitar", "đàn ghi-ta", "/ɡɪˈtɑːr/"),
+    e("singer", "ca sĩ", "/ˈsɪŋ.ər/"),
+  ]),
+  L("medium", "Trung cấp", [ e("melody", "giai điệu") ]),
+  L("hard", "Nâng cao", [ p("Can you play the piano?", "Bạn có biết chơi piano không?") ]),
+]);
+```
+
+- `e(en, vi, ipa?)` = một từ; `p(en, vi)` = một câu (dùng `phrase: true`, không cần IPA).
+- `T(id, icon, name, desc, levels)` = chủ đề; `L(id, name, items)` = cấp độ (`basic` / `medium` / `hard` là quy ước thời gian 20s / 15s / 11s).
+- Không cần sửa `script.js`: danh sách chủ đề, tiến độ, tìm kiếm và chế độ luyện tự cập nhật theo dữ liệu.
 
 ### Thêm ngôn ngữ mới
 

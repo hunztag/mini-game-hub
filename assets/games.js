@@ -62,11 +62,12 @@ window.GAMES = [
     id: "reflex",
     icon: "⚡",
     name: "Phản Xạ Ngoại Ngữ",
-    desc: "Đọc từ/câu tiếng Việt rồi gõ ngoại ngữ thật nhanh trước khi hết giờ: 3 cấp độ, 9 màn, nhiều kiểu câu hỏi.",
+    desc: "📚 Học 336 từ/câu theo 12 chủ đề (Gia đình, Giao tiếp, Môi trường…) rồi ⚡ luyện phản xạ: 3 cấp độ, 9 màn, nhiều kiểu câu hỏi.",
     href: "reflex/index.html",
     status: "ready",
     tags: [
       { text: "Học tập" },
+      { text: "12 chủ đề", color: "green" },
       { text: "3 cấp độ", color: "green" },
       { text: "9 màn", color: "pink" },
     ],

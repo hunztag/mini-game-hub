@@ -11,9 +11,12 @@
   "use strict";
 
   const DATA = window.ReflexData || { packs: [] };
+  const LESSONS = window.ReflexLessons || { topics: [] };
   const KEY_LANG = "reflex-lang";
   const KEY_PROGRESS = "reflex-progress";
   const KEY_LAST = "reflex-last";
+  const KEY_LEARNED = "reflex-learned";
+  const KEY_STUDY = "reflex-study";
 
   const MAX_LIVES = 3;
   const HINT_PENALTY = 3000; // mở gợi ý mất 3 giây
@@ -169,11 +172,37 @@
     ovText: $("overlay-text"),
     ovActions: $("overlay-actions"),
     soundBtn: $("sound-btn"),
+    tabs: $("tabs"),
+    tabPlay: $("tab-play"),
+    tabStudy: $("tab-study"),
+    study: $("study"),
+    topics: $("topics"),
+    studyRandom: $("study-random"),
+    lesson: $("lesson"),
+    lessonBack: $("lesson-back"),
+    lessonIcon: $("lesson-icon"),
+    lessonName: $("lesson-name"),
+    lessonLevels: $("lesson-levels"),
+    studyFill: $("study-fill"),
+    studyCount: $("study-count"),
+    studyHideVi: $("study-hide-vi"),
+    studySearch: $("study-search"),
+    studyList: $("study-list"),
+    studyPractice: $("study-practice"),
+    studyMarkAll: $("study-mark-all"),
   };
 
   /* ---------- Trạng thái ---------- */
   const state = {
     pack: null,
+    mode: "stage", // "stage" = chơi theo màn, "custom" = luyện từ chủ đề
+    custom: null,
+    customBack: "lesson",
+    topicId: "",
+    topicLevelId: "basic",
+    levelMap: {},
+    search: "",
+    hideVi: false,
     levelId: "",
     level: null,
     stageIdx: 0,
@@ -214,6 +243,282 @@
 
   const currentLevel = () =>
     state.pack.levels.find((lv) => lv.id === state.levelId) || state.pack.levels[0];
+
+  /* ============================================================
+     CHẾ ĐỘ HỌC — duyệt từ vựng theo chủ đề
+     ============================================================ */
+  const itemKey = (topicId, levelId, index) => `${topicId}|${levelId}|${index}`;
+
+  function learnedMap() {
+    const raw = readJson(KEY_LEARNED);
+    const out = {};
+    if (raw) for (const k of Object.keys(raw)) if (raw[k]) out[k] = 1;
+    return out;
+  }
+
+  function topicById(id) {
+    return LESSONS.topics.find((t) => t.id === id) || null;
+  }
+
+  function lessonLevel() {
+    const topic = topicById(state.topicId);
+    if (!topic) return null;
+    return topic.levels.find((lv) => lv.id === state.topicLevelId) || topic.levels[0];
+  }
+
+  function learnedCount(topic, level) {
+    const map = learnedMap();
+    let n = 0;
+    level.items.forEach((_, i) => {
+      if (map[itemKey(topic.id, level.id, i)]) n += 1;
+    });
+    return n;
+  }
+
+  function showScreen(name) {
+    for (const key of ["menu", "study", "lesson", "play"]) {
+      const el = els[key];
+      if (el) el.classList.toggle("hidden", key !== name);
+    }
+
+    const learning = name === "study" || name === "lesson";
+    if (els.tabs) els.tabs.classList.toggle("hidden", name === "play");
+    if (els.tabPlay) {
+      els.tabPlay.classList.toggle("active", !learning);
+      els.tabPlay.setAttribute("aria-selected", learning ? "false" : "true");
+    }
+    if (els.tabStudy) {
+      els.tabStudy.classList.toggle("active", learning);
+      els.tabStudy.setAttribute("aria-selected", learning ? "true" : "false");
+    }
+  }
+
+  function renderTopics() {
+    if (!els.topics) return;
+    els.topics.innerHTML = "";
+    if (!LESSONS.topics.length) {
+      els.topics.innerHTML = '<p class="menu-note">Không tải được dữ liệu học (lessons.js).</p>';
+      return;
+    }
+
+    const map = learnedMap();
+    for (const topic of LESSONS.topics) {
+      let total = 0;
+      let done = 0;
+      topic.levels.forEach((lv) => {
+        lv.items.forEach((_, i) => {
+          total += 1;
+          if (map[itemKey(topic.id, lv.id, i)]) done += 1;
+        });
+      });
+      const pct = total ? Math.round((done / total) * 100) : 0;
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "topic";
+      btn.dataset.topic = topic.id;
+      btn.innerHTML = `
+        <span class="topic-icon">${topic.icon}</span>
+        <span class="topic-main">
+          <b>${esc(topic.name)}</b>
+          <span class="topic-meta">${esc(topic.desc)} · ${total} mục</span>
+          <span class="topic-bar"><i style="width:${pct}%"></i></span>
+        </span>
+        <span class="topic-count">${done}/${total}</span>`;
+      btn.addEventListener("click", () => {
+        play("click");
+        openTopic(topic.id);
+      });
+      els.topics.appendChild(btn);
+    }
+  }
+
+  function openTopic(topicId, levelId) {
+    const topic = topicById(topicId);
+    if (!topic) return;
+    const remembered = state.levelMap[topic.id];
+    const valid = levelId || (topic.levels.some((lv) => lv.id === remembered) ? remembered : "");
+    state.topicId = topic.id;
+    state.topicLevelId = valid || (topic.levels[0] && topic.levels[0].id) || "basic";
+    state.levelMap[topic.id] = state.topicLevelId;
+    state.search = "";
+    if (els.studySearch) els.studySearch.value = "";
+    saveStudyState();
+    showScreen("lesson");
+    renderLesson();
+  }
+
+  function saveStudyState() {
+    writeJson(KEY_STUDY, {
+      topic: state.topicId,
+      level: state.topicLevelId,
+      levels: state.levelMap,
+      hideVi: !!state.hideVi,
+    });
+  }
+
+  function renderLesson() {
+    const topic = topicById(state.topicId);
+    if (!topic) return;
+
+    els.lessonIcon.textContent = topic.icon;
+    els.lessonName.textContent = topic.name;
+    els.lessonLevels.innerHTML = "";
+
+    for (const lv of topic.levels) {
+      const on = lv.id === state.topicLevelId;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "level" + (on ? " active" : "");
+      btn.setAttribute("aria-pressed", on ? "true" : "false");
+      btn.innerHTML = `<b>${esc(lv.name)}</b><span>${lv.items.length} mục</span>`;
+      btn.addEventListener("click", () => {
+        play("click");
+        state.topicLevelId = lv.id;
+        state.levelMap[topic.id] = lv.id;
+        saveStudyState();
+        renderLesson();
+      });
+      els.lessonLevels.appendChild(btn);
+    }
+
+    if (els.studyHideVi) {
+      els.studyHideVi.setAttribute("aria-pressed", state.hideVi ? "true" : "false");
+      els.studyHideVi.textContent = state.hideVi ? "👁 Hiện nghĩa" : "🙈 Ẩn nghĩa";
+    }
+
+    renderCards();
+  }
+
+  function updateStudyProgress() {
+    const topic = topicById(state.topicId);
+    const level = lessonLevel();
+    if (!topic || !level || !els.studyFill) return;
+    const total = level.items.length;
+    const done = learnedCount(topic, level);
+    els.studyFill.style.width = (total ? (done / total) * 100 : 0) + "%";
+    els.studyCount.textContent = `${done}/${total} đã thuộc`;
+  }
+
+  function renderCards() {
+    const topic = topicById(state.topicId);
+    const level = lessonLevel();
+    if (!topic || !level || !els.studyList) return;
+
+    const map = learnedMap();
+    const q = norm(state.search);
+    const rows = level.items
+      .map((item, i) => ({ item, i }))
+      .filter(({ item }) => !q || norm(item.en).includes(q) || norm(item.vi).includes(q));
+
+    els.studyList.innerHTML = "";
+    els.studyList.classList.toggle("hide-vi", !!state.hideVi);
+    updateStudyProgress();
+
+    if (!rows.length) {
+      els.studyList.innerHTML = '<p class="menu-note">Không tìm thấy mục nào khớp.</p>';
+      return;
+    }
+
+    for (const { item, i } of rows) {
+      const learned = !!map[itemKey(topic.id, level.id, i)];
+      const card = document.createElement("article");
+      card.className = "card" + (learned ? " learned" : "");
+      card.dataset.index = String(i);
+      card.innerHTML = `
+        <button class="card-main" type="button">
+          <span class="card-en">${esc(item.en)}</span>
+          ${item.ipa ? `<span class="card-ipa">${esc(item.ipa)}</span>` : ""}
+          <span class="card-vi">${esc(item.vi)}</span>
+        </button>
+        <span class="card-tools">
+          <button class="ghost-btn icon-btn card-say" type="button" title="Nghe phát âm" aria-label="Nghe phát âm">🔊</button>
+          <button class="ghost-btn icon-btn card-check" type="button" title="Đánh dấu đã thuộc" aria-label="Đánh dấu đã thuộc" aria-pressed="${
+            learned ? "true" : "false"
+          }">✓</button>
+        </span>`;
+
+      card.querySelector(".card-main").addEventListener("click", () => {
+        card.classList.toggle("revealed");
+      });
+
+      card.querySelector(".card-say").addEventListener("click", (event) => {
+        event.stopPropagation();
+        speak(item.en);
+      });
+
+      card.querySelector(".card-check").addEventListener("click", (event) => {
+        event.stopPropagation();
+        const all = learnedMap();
+        const key = itemKey(topic.id, level.id, i);
+        const now = !all[key];
+        if (now) all[key] = 1;
+        else delete all[key];
+        writeJson(KEY_LEARNED, all);
+
+        card.classList.toggle("learned", now);
+        card.querySelector(".card-check").setAttribute("aria-pressed", now ? "true" : "false");
+        if (now) play("click");
+        updateStudyProgress();
+      });
+
+      els.studyList.appendChild(card);
+    }
+  }
+
+  /* ---------- Sinh câu hỏi luyện từ danh sách đã học ---------- */
+  function buildPractice(items, count) {
+    const pool = (items || []).filter((it) => it && it.en && it.vi);
+    if (!pool.length) return [];
+
+    const picked = shuffle(pool.slice()).slice(0, Math.min(count || 12, pool.length));
+    const viPool = pool.map((it) => it.vi);
+    const list = [];
+
+    picked.forEach((item, i) => {
+      const long = item.phrase || item.en.split(" ").length >= 3;
+
+      // cứ 4 câu thì có 1 câu trắc nghiệm chiều Anh → Việt
+      if (i % 4 === 3) {
+        const others = shuffle(viPool.filter((v) => v !== item.vi)).slice(0, 3);
+        if (others.length === 3) {
+          list.push({
+            k: "choice",
+            q: `Từ “${item.en}” có nghĩa là gì?`,
+            o: shuffle([item.vi].concat(others)),
+            a: [item.vi],
+            hint: item.ipa || "",
+          });
+          return;
+        }
+      }
+
+      list.push({
+        k: long ? "sentence" : "word",
+        q: item.vi,
+        a: [item.en],
+        hint: item.ipa || "",
+      });
+    });
+
+    return list;
+  }
+
+  function practiceFrom(items, title, time, back) {
+    const list = buildPractice(items, 12);
+    if (!list.length) return;
+    startCustom(list, { title, time, items: items.slice(), count: 12, back: back || "lesson" });
+  }
+
+  function practiceAllTopics() {
+    const items = [];
+    LESSONS.topics.forEach((topic) => {
+      topic.levels.forEach((lv) => {
+        lv.items.forEach((it) => items.push(it));
+      });
+    });
+    practiceFrom(items, "🔀 Luyện tổng hợp · 12 chủ đề", 15, "study");
+  }
 
   /* ---------- Màn chọn ---------- */
   function renderLang() {
@@ -318,14 +623,43 @@
     state.lives = MAX_LIVES;
     state.locked = false;
     state.current = null;
+    state.mode = "stage";
+    state.custom = null;
 
-    els.menu.classList.add("hidden");
     els.overlay.classList.add("hidden");
-    els.play.classList.remove("hidden");
+    els.quitBtn.textContent = "← Chọn màn";
+    showScreen("play");
     els.stageTitle.textContent = `${level.name} · Màn ${state.stageIdx + 1}: ${stage.name}`;
 
     writeLocal(KEY_LANG, state.pack.id);
     writeJson(KEY_LAST, { lang: state.pack.id, level: level.id, stage: state.stageIdx });
+
+    updateHud();
+    askNext();
+  }
+
+  function startCustom(list, opts) {
+    if (!Array.isArray(list) || !list.length) return;
+
+    state.mode = "custom";
+    state.custom = opts;
+    state.customBack = opts.back || "lesson";
+    state.level = { id: "custom", name: opts.title, time: opts.time || 20, stages: [] };
+    state.stageIdx = 0;
+    state.list = shuffle(list.slice());
+    state.idx = 0;
+    state.score = 0;
+    state.combo = 0;
+    state.maxCombo = 0;
+    state.correct = 0;
+    state.lives = MAX_LIVES;
+    state.locked = false;
+    state.current = null;
+
+    els.overlay.classList.add("hidden");
+    els.quitBtn.textContent = "← Về phần Học";
+    showScreen("play");
+    els.stageTitle.textContent = opts.title;
 
     updateHud();
     askNext();
@@ -664,6 +998,38 @@
     els.input.disabled = true;
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
 
+    /* ---------- Luyện theo chủ đề: không lưu kỷ lục màn ---------- */
+    if (state.mode === "custom") {
+      const opts = state.custom || {};
+      const totalQ = state.list.length;
+      const accuracyQ = totalQ ? Math.round((state.correct / totalQ) * 100) : 0;
+
+      els.ovTitle.textContent = cleared ? "Hoàn thành! 🎉" : "Hết lượt 😢";
+      els.ovTitle.className = cleared ? "" : "lose";
+      els.ovText.innerHTML = [
+        `Điểm: <b>${state.score}</b>`,
+        `Đúng ${state.correct}/${totalQ} câu (${accuracyQ}%) · chuỗi cao nhất ×${state.maxCombo}`,
+        cleared ? "Bạn đã luyện xong bộ từ này." : "Còn 0 mạng — thử lại nhé.",
+      ].join("<br>");
+
+      els.ovActions.innerHTML = "";
+      addOverlayBtn("↺ Luyện lại", "primary-btn", () => {
+        els.overlay.classList.add("hidden");
+        const again = buildPractice(opts.items || [], opts.count || 12);
+        if (again.length) startCustom(again, opts);
+        else backFromPlay();
+      });
+      addOverlayBtn("← Về phần Học", "ghost-btn", () => {
+        els.overlay.classList.add("hidden");
+        backFromPlay();
+      });
+
+      if (cleared) play("win");
+      else play("gameOver");
+      els.overlay.classList.remove("hidden");
+      return;
+    }
+
     const level = state.level;
     const total = state.list.length;
     const accuracy = total ? Math.round((state.correct / total) * 100) : 0;
@@ -709,7 +1075,7 @@
         startStage();
       });
     }
-    addOverlayBtn("← Chọn màn", "ghost-btn", () => backToMenu());
+    addOverlayBtn("← Chọn màn", "ghost-btn", () => backFromPlay());
 
     els.overlay.classList.remove("hidden");
   }
@@ -723,17 +1089,34 @@
     els.ovActions.appendChild(btn);
   }
 
-  function backToMenu() {
+  function backFromPlay() {
     stopTimer();
     window.clearTimeout(state.nextTimer);
     state.nextTimer = 0;
     state.running = false;
     state.locked = true;
+    els.input.disabled = true;
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
 
     els.overlay.classList.add("hidden");
-    els.play.classList.add("hidden");
-    els.menu.classList.remove("hidden");
+
+    if (state.mode === "custom") {
+      const back = state.customBack;
+      state.mode = "stage";
+      state.custom = null;
+      els.quitBtn.textContent = "← Chọn màn";
+
+      if (back === "study") {
+        showScreen("study");
+        renderTopics();
+      } else {
+        showScreen("lesson");
+        renderLesson();
+      }
+      return;
+    }
+
+    showScreen("menu");
     renderLevels();
     renderStages();
     updateStartLabel();
@@ -791,7 +1174,7 @@
       startStage();
     });
 
-    els.quitBtn.addEventListener("click", () => backToMenu());
+    els.quitBtn.addEventListener("click", () => backFromPlay());
 
     els.resetBtn.addEventListener("click", () => {
       const sure = window.confirm("Xoá toàn bộ tiến độ và kỷ lục của game này?");
@@ -829,13 +1212,99 @@
       });
     }
 
+    /* ---------- Tab Chơi / Học ---------- */
+    if (els.tabPlay) {
+      els.tabPlay.addEventListener("click", () => {
+        play("click");
+        showScreen("menu");
+        renderLevels();
+        renderStages();
+        updateStartLabel();
+      });
+    }
+
+    if (els.tabStudy) {
+      els.tabStudy.addEventListener("click", () => {
+        play("click");
+        showScreen("study");
+        renderTopics();
+      });
+    }
+
+    if (els.lessonBack) {
+      els.lessonBack.addEventListener("click", () => {
+        play("click");
+        showScreen("study");
+        renderTopics();
+      });
+    }
+
+    if (els.studyRandom) {
+      els.studyRandom.addEventListener("click", () => {
+        play("click");
+        practiceAllTopics();
+      });
+    }
+
+    if (els.studyPractice) {
+      els.studyPractice.addEventListener("click", () => {
+        const topic = topicById(state.topicId);
+        const level = lessonLevel();
+        if (!topic || !level) return;
+        play("click");
+        const time = level.id === "hard" ? 11 : level.id === "medium" ? 15 : 20;
+        practiceFrom(level.items, `${topic.icon} ${topic.name} · ${level.name}`, time, "lesson");
+      });
+    }
+
+    if (els.studyMarkAll) {
+      els.studyMarkAll.addEventListener("click", () => {
+        const topic = topicById(state.topicId);
+        const level = lessonLevel();
+        if (!topic || !level) return;
+
+        const map = learnedMap();
+        const allLearned = level.items.every((_, i) => map[itemKey(topic.id, level.id, i)]);
+        level.items.forEach((_, i) => {
+          const key = itemKey(topic.id, level.id, i);
+          if (allLearned) delete map[key];
+          else map[key] = 1;
+        });
+        writeJson(KEY_LEARNED, map);
+        els.studyMarkAll.textContent = allLearned ? "✓ Đánh dấu đã thuộc tất cả" : "↺ Bỏ đánh dấu tất cả";
+        renderCards();
+        play("click");
+      });
+    }
+
+    if (els.studyHideVi) {
+      els.studyHideVi.addEventListener("click", () => {
+        state.hideVi = !state.hideVi;
+        saveStudyState();
+        renderLesson();
+      });
+    }
+
+    if (els.studySearch) {
+      els.studySearch.addEventListener("input", () => {
+        state.search = els.studySearch.value;
+        renderCards();
+      });
+    }
+
     document.addEventListener("keydown", (event) => {
       if (event.key !== "Escape") return;
-      if (els.overlay.classList.contains("hidden") === false) {
-        backToMenu();
+
+      if (!els.overlay.classList.contains("hidden") || !els.play.classList.contains("hidden")) {
+        backFromPlay();
         return;
       }
-      if (!els.play.classList.contains("hidden")) backToMenu();
+      if (els.lesson && !els.lesson.classList.contains("hidden")) {
+        showScreen("study");
+        renderTopics();
+        return;
+      }
+      if (els.study && !els.study.classList.contains("hidden")) showScreen("menu");
     });
   }
 
@@ -865,12 +1334,28 @@
       last.lang === state.pack.id && Number.isInteger(last.stage) ? clampStage(state.levelId, last.stage) : firstOpenStage(state.levelId);
     state.stageIdx = clampStage(state.levelId, state.stageIdx);
 
+    /* Khôi phục vị trí học gần nhất */
+    const study = readJson(KEY_STUDY) || {};
+    if (study.levels && typeof study.levels === "object") state.levelMap = study.levels;
+    const topic = topicById(study.topic);
+    if (topic) {
+      state.topicId = topic.id;
+      state.topicLevelId = topic.levels.some((lv) => lv.id === study.level) ? study.level : topic.levels[0].id;
+      state.levelMap[topic.id] = state.topicLevelId;
+      state.hideVi = !!study.hideVi;
+    } else if (LESSONS.topics.length) {
+      state.topicId = LESSONS.topics[0].id;
+      state.topicLevelId = LESSONS.topics[0].levels[0].id;
+    }
+
     renderLang();
     renderLevels();
     renderStages();
     updateStartLabel();
+    renderTopics();
     wire();
     paintSound();
+    showScreen("menu");
   }
 
   if (document.readyState === "loading") {

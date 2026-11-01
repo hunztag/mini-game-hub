@@ -14,8 +14,14 @@
   <main class="app">
     <header class="topbar">
       <h1>Phản Xạ Ngoại Ngữ</h1>
-      <p class="subtitle">Đọc tiếng Việt · gõ ngoại ngữ thật nhanh trước khi hết giờ</p>
+      <p class="subtitle">Học từ vựng theo chủ đề · luyện phản xạ trước khi hết giờ</p>
     </header>
+
+    <!-- ================= TAB CHƠI / HỌC ================= -->
+    <div class="tabs" id="tabs" role="tablist">
+      <button class="tab active" id="tab-play" type="button" role="tab" aria-selected="true">⚡ Chơi</button>
+      <button class="tab" id="tab-study" type="button" role="tab" aria-selected="false">📚 Học từ vựng</button>
+    </div>
 
     <!-- ================= MÀN CHỌN CẤP ĐỘ / MÀN CHƠI ================= -->
     <section class="screen" id="menu">
@@ -38,6 +44,47 @@
       <div class="menu-foot">
         <button id="reset-progress-btn" class="ghost-btn tiny">🗑 Xoá tiến độ</button>
       </div>
+    </section>
+
+    <!-- ================= MÀN CHỌN CHỦ ĐỀ ================= -->
+    <section class="screen hidden" id="study">
+      <p class="section-label">Chọn chủ đề để học</p>
+      <div class="topics" id="topics"></div>
+      <p class="menu-note" id="study-sum">
+        Mỗi chủ đề có 3 cấp độ: Cơ bản · Trung cấp · Nâng cao. Học xong có thể bấm “Luyện chủ đề này”.
+      </p>
+      <div class="menu-foot">
+        <button id="study-random" class="ghost-btn tiny" type="button">🔀 Luyện tổng hợp 12 chủ đề</button>
+      </div>
+    </section>
+
+    <!-- ================= MÀN HỌC CHI TIẾT ================= -->
+    <section class="screen hidden" id="lesson">
+      <div class="lesson-head">
+        <button id="lesson-back" class="ghost-btn tiny" type="button">← Chủ đề</button>
+        <p class="lesson-title"><span id="lesson-icon">📚</span> <b id="lesson-name">Chủ đề</b></p>
+      </div>
+
+      <div class="levels" id="lesson-levels" role="group" aria-label="Chọn cấp độ từ vựng"></div>
+
+      <div class="study-bar">
+        <div class="study-progress" role="progressbar" aria-label="Số mục đã thuộc">
+          <div class="study-fill" id="study-fill"></div>
+          <span id="study-count">0/0</span>
+        </div>
+        <button id="study-hide-vi" class="ghost-btn tiny" type="button" aria-pressed="false">🙈 Ẩn nghĩa</button>
+      </div>
+
+      <input id="study-search" class="answer-input study-search" type="search"
+             placeholder="🔍 Tìm theo tiếng Anh hoặc tiếng Việt…" autocapitalize="off" autocomplete="off" />
+
+      <div class="cards" id="study-list"></div>
+
+      <div class="lesson-actions">
+        <button id="study-practice" class="primary-btn big" type="button">🎯 Luyện chủ đề này</button>
+        <button id="study-mark-all" class="ghost-btn tiny" type="button">✓ Đánh dấu đã thuộc tất cả</button>
+      </div>
+      <p class="menu-note">Bấm vào thẻ để ẩn/hiện nghĩa · 🔊 để nghe phát âm · ✓ để đánh dấu đã thuộc</p>
     </section>
 
     <!-- ================= MÀN CHƠI ================= -->
@@ -93,6 +140,7 @@
 
   <script src="../assets/audio.js"></script>
   <script src="data.js"></script>
+  <script src="lessons.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

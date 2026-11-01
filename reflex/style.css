@@ -679,6 +679,285 @@ kbd {
   margin-top: 0.35rem;
 }
 
+/* ============================================================
+   CHẾ ĐỘ HỌC
+   ============================================================ */
+
+/* ---------- Tab Chơi / Học ---------- */
+.tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.3rem;
+  padding: 0.25rem;
+  margin-bottom: 0.9rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid var(--line);
+}
+
+.tab {
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.5rem 0.5rem;
+  cursor: pointer;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  transition: color 0.18s ease, background 0.18s ease;
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+.tab.active {
+  color: #04121a;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  box-shadow: 0 5px 16px rgba(34, 211, 238, 0.25);
+}
+
+/* ---------- Danh sách chủ đề ---------- */
+.topics {
+  display: grid;
+  gap: 0.45rem;
+  margin-bottom: 0.9rem;
+}
+
+.topic {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.65rem 0.85rem;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  border-radius: 14px;
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--line);
+  transition: transform 0.12s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.topic:hover {
+  transform: translateY(-1px);
+  border-color: rgba(34, 211, 238, 0.55);
+  background: rgba(34, 211, 238, 0.07);
+}
+
+.topic-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.topic-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.topic-main b {
+  font-size: 0.87rem;
+}
+
+.topic-meta {
+  font-size: 0.67rem;
+  color: var(--muted);
+}
+
+.topic-bar {
+  display: block;
+  height: 4px;
+  margin-top: 0.1rem;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(148, 163, 184, 0.2);
+}
+
+.topic-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  transition: width 0.25s ease;
+}
+
+.topic-count {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+/* ---------- Chi tiết chủ đề ---------- */
+.lesson-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.7rem;
+}
+
+.lesson-title {
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.lesson-title b {
+  font-weight: 700;
+}
+
+.study-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.55rem;
+}
+
+.study-progress {
+  position: relative;
+  flex: 1;
+  height: 24px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid var(--line);
+}
+
+.study-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  transition: width 0.25s ease;
+}
+
+.study-progress span {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  height: 100%;
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: #f8fafc;
+  text-shadow: 0 1px 3px rgba(2, 8, 20, 0.9);
+}
+
+.study-search {
+  width: 100%;
+  margin-bottom: 0.6rem;
+}
+
+/* ---------- Thẻ từ ---------- */
+.cards {
+  display: grid;
+  gap: 0.4rem;
+  max-height: min(56vh, 520px);
+  overflow-y: auto;
+  padding-right: 0.2rem;
+  margin-bottom: 0.75rem;
+  overscroll-behavior: contain;
+}
+
+.cards::-webkit-scrollbar {
+  width: 6px;
+}
+
+.cards::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.35);
+}
+
+.card {
+  display: flex;
+  align-items: stretch;
+  gap: 0.4rem;
+  padding: 0.5rem 0.55rem 0.5rem 0.7rem;
+  border-radius: 13px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.card:hover {
+  border-color: rgba(34, 211, 238, 0.4);
+}
+
+.card.learned {
+  border-color: rgba(163, 230, 53, 0.45);
+  background: rgba(163, 230, 53, 0.07);
+}
+
+.card-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.card-en {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.card-ipa {
+  font-size: 0.68rem;
+  color: var(--accent);
+}
+
+.card-vi {
+  font-size: 0.79rem;
+  line-height: 1.4;
+  color: var(--muted);
+  transition: filter 0.15s ease, opacity 0.15s ease;
+}
+
+.cards.hide-vi .card:not(.revealed) .card-vi {
+  filter: blur(6px);
+  opacity: 0.6;
+}
+
+.card-tools {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.25rem;
+}
+
+.card-tools .icon-btn {
+  padding: 0.28rem 0.42rem;
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+.card-check[aria-pressed="true"] {
+  color: #04121a;
+  background: var(--good);
+  border-color: transparent;
+}
+
+.lesson-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 /* ---------- Điện thoại ---------- */
 @media (max-width: 430px) {
   body {
