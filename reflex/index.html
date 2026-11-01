@@ -48,6 +48,7 @@
 
     <!-- ================= MÀN CHỌN CHỦ ĐỀ ================= -->
     <section class="screen hidden" id="study">
+      <div class="lang-tabs" id="study-langs" role="group" aria-label="Chọn ngôn ngữ cần học"></div>
       <p class="section-label">Chọn chủ đề để học</p>
       <div class="topics" id="topics"></div>
       <p class="menu-note" id="study-sum">
@@ -62,7 +63,7 @@
     <section class="screen hidden" id="lesson">
       <div class="lesson-head">
         <button id="lesson-back" class="ghost-btn tiny" type="button">← Chủ đề</button>
-        <p class="lesson-title"><span id="lesson-icon">📚</span> <b id="lesson-name">Chủ đề</b></p>
+        <p class="lesson-title"><span id="lesson-icon">📚</span> <b id="lesson-name">Chủ đề</b> <span class="lesson-lang" id="lesson-lang"></span></p>
       </div>
 
       <div class="levels" id="lesson-levels" role="group" aria-label="Chọn cấp độ từ vựng"></div>
@@ -76,7 +77,7 @@
       </div>
 
       <input id="study-search" class="answer-input study-search" type="search"
-             placeholder="🔍 Tìm theo tiếng Anh hoặc tiếng Việt…" autocapitalize="off" autocomplete="off" />
+             placeholder="🔍 Tìm theo tiếng Anh, chữ Hán, pinyin hoặc tiếng Việt…" autocapitalize="off" autocomplete="off" />
 
       <div class="cards" id="study-list"></div>
 
@@ -126,7 +127,8 @@
 
       <p class="hint">
         <kbd>Enter</kbd> gửi câu trả lời · <kbd>Tab</kbd> tới nút Gợi ý · <kbd>Esc</kbd> về chọn màn<br />
-        Không cần viết hoa, không cần dấu chấm cuối câu
+        Không cần viết hoa, không cần dấu chấm cuối câu<br />
+        🇨🇳 Tiếng Trung: gõ <b>chữ Hán</b> hoặc <b>pinyin</b> — có dấu (nǐ hǎo) hay không dấu (ni hao) đều được
       </p>
     </section>
 
@@ -139,8 +141,10 @@
   </main>
 
   <script src="../assets/audio.js"></script>
+  <script src="pinyin.js"></script>
   <script src="data.js"></script>
   <script src="lessons.js"></script>
+  <script src="lessons-zh.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

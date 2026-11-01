@@ -12,7 +12,7 @@ Mở `web-game/index.html` bằng trình duyệt là chơi được ngay.
 | ⚫ Cờ caro | ✅ Sẵn sàng | Bàn 15×15, đấu máy (3 độ khó), 2 người, **online** (mã phòng) |
 | ♟️ Cờ vua | ✅ Sẵn sàng | Bàn 8×8, đủ luật (phong cấp, nhập thành, bắt tốt qua đường), đấu máy (3 độ khó), 2 người, **online** |
 | 🏮 Cờ tướng | ✅ Sẵn sàng | Bàn 9×10 có sông và cung, đấu máy (3 độ khó), 2 người, **online** |
-| ⚡ Phản Xạ Ngoại Ngữ | ✅ Sẵn sàng | 2 chế độ: **Học** 12 chủ đề · 336 từ/câu (đánh dấu đã thuộc) và **Chơi** phản xạ 3 cấp độ × 3 màn, 7 kiểu câu hỏi, dễ thêm ngôn ngữ mới |
+| ⚡ Phản Xạ Ngoại Ngữ | ✅ Sẵn sàng | 2 chế độ: **Học** 12 chủ đề · 336 từ/câu (Anh **và** Trung) và **Chơi** phản xạ 3 cấp độ × 3 màn, 7 kiểu câu hỏi; 🇨🇳 hiện chữ Hán + pinyin, gõ pinyin có dấu hay không dấu đều đúng |
 | 🔢 2048 | 🚧 Sắp có | — |
 | 🃏 Lật thẻ | 🚧 Sắp có | — |
 
@@ -67,6 +67,8 @@ web-game/
 │   ├── style.css
 │   ├── data.js         # ⭐ Nội dung chơi: ngôn ngữ, cấp độ, màn, câu hỏi
 │   ├── lessons.js      # ⭐ Nội dung học: 12 chủ đề × 3 cấp độ (336 từ/câu)
+│   ├── lessons-zh.js   # 🇨🇳 Nội dung học tiếng Trung: 12 chủ đề × 3 cấp độ (336 mục)
+│   ├── pinyin.js       # Tiện ích pinyin: bỏ dấu, chấp nhận ü/v, mặt nạ gợi ý
 │   └── script.js       # Luật chơi: đồng hồ, tính điểm, mạng, mở khoá màn, chế độ Học
 └── server/             # Server Node.js: web tĩnh + relay online (tuỳ chọn)
     ├── package.json
@@ -211,22 +213,37 @@ Hiện từ / câu bằng **tiếng Việt**, bạn phải gõ đáp án bằng 
 
 ### 📚 Học từ vựng theo chủ đề
 
-Tab **📚 Học từ vựng** mở thư viện từ vựng song ngữ (Anh ↔ Việt) để học trước, rồi luyện lại bằng chính bộ từ đó.
+Tab **📚 Học từ vựng** mở thư viện từ vựng song ngữ (ngoại ngữ ↔ Việt) để học trước, rồi luyện lại bằng chính bộ từ đó. Có **2 ngôn ngữ**: 🇬🇧 English và 🇨🇳 中文 (chữ Hán + pinyin).
 
 - **12 chủ đề**: Gia đình · Giao tiếp hằng ngày · Trường học & học tập · Công việc & văn phòng · Môi trường & thiên nhiên · Du lịch & di chuyển · Ẩm thực & nhà hàng · Sức khỏe & cơ thể · Công nghệ & internet · Cảm xúc & tính cách · Mua sắm & tiền · Thể thao & giải trí.
 - Mỗi chủ đề có **3 cấp độ**: `Cơ bản` (10 từ) · `Trung cấp` (10 từ) · `Nâng cao` (8 câu) → **28 mục/chủ đề, 336 mục** tổng cộng.
-- Thẻ từ hiển thị **tiếng Anh**, **phiên âm IPA** và **nghĩa tiếng Việt**.
+- Thẻ từ hiển thị **chữ ngoại ngữ** (Anh hoặc **chữ Hán**), **phiên âm** (IPA hoặc **pinyin**) và **nghĩa tiếng Việt**.
+- Hai nút **🇬🇧 English / 🇨🇳 中文** ở đầu màn Học để đổi ngôn ngữ; tiến độ, cấp độ đang chọn và từ đã thuộc được ghi nhớ **riêng cho từng ngôn ngữ**.
 - Bấm vào thẻ để **ẩn / hiện nghĩa** từng thẻ; bấm **🙈 Ẩn nghĩa** để ẩn toàn bộ (chế độ tự kiểm tra).
-- **🔊** đọc to từ/câu bằng giọng máy; **✓** đánh dấu **đã thuộc** (lưu vào `reflex-learned`, thanh tiến độ và % từng chủ đề cập nhật ngay).
-- **🔍 Tìm kiếm** theo cả tiếng Anh lẫn tiếng Việt (không cần dấu).
+- **🔊** đọc to từ/câu bằng giọng máy (tiếng Anh dùng `en-US`, tiếng Trung dùng `zh-CN`); **✓** đánh dấu **đã thuộc** (lưu vào `reflex-learned`, thanh tiến độ và % từng chủ đề cập nhật ngay).
+- **🔍 Tìm kiếm** theo tiếng Anh, tiếng Việt (không cần dấu), **chữ Hán** hoặc **pinyin** (`mama`, `jiā`, `妈妈` đều tìm được).
 - **✓ Đánh dấu đã thuộc tất cả** / **↺ Bỏ đánh dấu tất cả** cho nhanh.
 - **🎯 Luyện chủ đề này**: tạo ngay một lượt chơi 12 câu từ đúng cấp độ đang học (20s / 15s / 11s mỗi câu) — câu hỏi tự trộn kiểu *gõ từ*, *gõ câu* và *chọn đáp án*; kết thúc có `↺ Luyện lại` và `← Về phần Học`.
 - **🔀 Luyện tổng hợp 12 chủ đề**: trộn ngẫu nhiên từ vựng của cả 12 chủ đề.
 - Lượt luyện theo chủ đề **không** ảnh hưởng điểm kỷ lục / màn đã mở của chế độ Chơi.
 
+### 🇨🇳 Tiếng Trung & pinyin
+
+Chọn 🇨🇳 **中文** ở menu (chế độ Chơi) hoặc ở đầu tab Học. Mọi từ/câu tiếng Trung đều hiện **chữ Hán + pinyin + nghĩa tiếng Việt**.
+
+- Khi câu hỏi bằng tiếng Việt, bạn gõ **pinyin** — và **gõ chữ Hán cũng được**.
+- Pinyin **có dấu** (`nǐ hǎo`) và **không dấu** (`ni hao`) đều tính đúng; gõ liền không khoảng trắng (`nihao`) cũng đúng.
+- `ü` có thể gõ là `u` hoặc `v` (`nǚ` → `nu` / `nv`).
+- 💡 Gợi ý hiện **mặt nạ pinyin** (`m…`, `j… j…`) kèm ghi chú, không lộ đáp án.
+- Sai / hết giờ sẽ hiện đáp án dạng `猫 · māo`.
+- Pinyin được sinh tự động bởi `reflex/pinyin.js` (`ReflexPinyin.answers(pinyin)`), nên không cần khai báo từng biến thể không dấu.
+
 ### Thêm chủ đề / từ vựng mới
 
-Mở `reflex/lessons.js` và thêm một object vào mảng `topics`:
+- Tiếng Anh: mở `reflex/lessons.js`, thêm object vào mảng `topics`.
+- Tiếng Trung: mở `reflex/lessons-zh.js`, thêm object vào mảng `topics` với helper `z(chữ Hán, pinyin, nghĩa)` và `p(chữ Hán, pinyin, nghĩa)` cho câu.
+
+Ví dụ tiếng Anh:
 
 ```js
 T("music", "🎵", "Âm nhạc", "Nhạc cụ, thể loại, ca sĩ", [
@@ -240,6 +257,7 @@ T("music", "🎵", "Âm nhạc", "Nhạc cụ, thể loại, ca sĩ", [
 ```
 
 - `e(en, vi, ipa?)` = một từ; `p(en, vi)` = một câu (dùng `phrase: true`, không cần IPA).
+- Tiếng Trung: `z(zh, pinyin, vi)` = một từ, `p(zh, pinyin, vi)` = một câu — hậu tố pinyin cũng là đáp án gợi ý khi luyện.
 - `T(id, icon, name, desc, levels)` = chủ đề; `L(id, name, items)` = cấp độ (`basic` / `medium` / `hard` là quy ước thời gian 20s / 15s / 11s).
 - Không cần sửa `script.js`: danh sách chủ đề, tiến độ, tìm kiếm và chế độ luyện tự cập nhật theo dữ liệu.
 
@@ -270,6 +288,14 @@ op("How old are you?", "I am twenty", "tuổi")     // open
 mc("Từ nào có nghĩa là “nhà”?", ["ie","mizu","hon","sora"], "ie")  // choice
 ls("neko", "🐱")                            // listen
 ```
+
+Riêng **tiếng Trung** có thêm bộ helper chấp nhận cả chữ Hán lẫn pinyin:
+
+```js
+zh("con mèo", "猫", "māo", "🐱")           // word  → đáp án: 猫 / māo / mao
+zs("Tôi thích ăn táo.", "我喜欢吃苹果。", "Wǒ xǐhuan chī píngguǒ.")  // sentence
+zg("我___北京工作。", "在", "zài", "ở / tại")  // gap
+zl("朋友", "péngyou")                       // listen
 
 Khi `packs` có từ 2 phần tử trở lên, ô chọn ngôn ngữ **tự xuất hiện** ở menu.
 

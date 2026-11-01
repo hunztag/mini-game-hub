@@ -485,6 +485,14 @@ body {
   margin-bottom: 0.2rem;
 }
 
+.prompt-text small {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
 /* ---------- Trắc nghiệm ---------- */
 .choices {
   display: grid;
@@ -718,6 +726,39 @@ kbd {
   box-shadow: 0 5px 16px rgba(34, 211, 238, 0.25);
 }
 
+/* ---------- Chọn ngôn ngữ ở phần Học ---------- */
+.lang-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+  margin-bottom: 0.7rem;
+}
+
+.lang-tab {
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.45rem 0.5rem;
+  cursor: pointer;
+  color: var(--muted);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.lang-tab:hover {
+  color: var(--text);
+  border-color: rgba(34, 211, 238, 0.45);
+}
+
+.lang-tab.active {
+  color: #04121a;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  border-color: transparent;
+  box-shadow: 0 5px 16px rgba(34, 211, 238, 0.22);
+}
+
 /* ---------- Danh sách chủ đề ---------- */
 .topics {
   display: grid;
@@ -809,6 +850,20 @@ kbd {
 
 .lesson-title b {
   font-weight: 700;
+}
+
+.lesson-title .lesson-lang {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--accent);
+  padding: 0.1rem 0.42rem;
+  border-radius: 999px;
+  border: 1px solid rgba(34, 211, 238, 0.35);
+  white-space: nowrap;
+}
+
+.lesson-title .lesson-lang:empty {
+  display: none;
 }
 
 .study-bar {
@@ -918,6 +973,20 @@ kbd {
 .card-ipa {
   font-size: 0.68rem;
   color: var(--accent);
+}
+
+/* ---------- Tiếng Trung: chữ Hán + pinyin ---------- */
+.card-hanzi {
+  font-size: 1.18rem;
+  letter-spacing: 0.04em;
+  line-height: 1.25;
+}
+
+.card-pinyin {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--accent-2);
+  letter-spacing: 0.01em;
 }
 
 .card-vi {

@@ -62,11 +62,12 @@ window.GAMES = [
     id: "reflex",
     icon: "⚡",
     name: "Phản Xạ Ngoại Ngữ",
-    desc: "📚 Học 336 từ/câu theo 12 chủ đề (Gia đình, Giao tiếp, Môi trường…) rồi ⚡ luyện phản xạ: 3 cấp độ, 9 màn, nhiều kiểu câu hỏi.",
+    desc: "📚 Học 336 từ/câu theo 12 chủ đề (🇬🇧 English & 🇨🇳 中文 + pinyin) rồi ⚡ luyện phản xạ: 3 cấp độ, 9 màn, nhiều kiểu câu hỏi. Gõ pinyin có dấu hay không dấu đều đúng.",
     href: "reflex/index.html",
     status: "ready",
     tags: [
       { text: "Học tập" },
+      { text: "Anh · Trung", color: "green" },
       { text: "12 chủ đề", color: "green" },
       { text: "3 cấp độ", color: "green" },
       { text: "9 màn", color: "pink" },

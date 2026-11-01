@@ -11,7 +11,20 @@
   "use strict";
 
   const DATA = window.ReflexData || { packs: [] };
-  const LESSONS = window.ReflexLessons || { topics: [] };
+  const PY =
+    window.ReflexPinyin ||
+    { toneless: () => [], answers: (p) => [p], mask: (p) => p, hasCjk: () => false };
+
+  /* Bộ dữ liệu phần Học — mỗi ngôn ngữ một bộ chủ đề riêng */
+  const LESSON_SETS = {
+    en: window.ReflexLessons || { topics: [] },
+    zh: window.ReflexLessonsZh || { topics: [] },
+  };
+  const LESSON_LANGS = [
+    { id: "en", flag: "🇬🇧", label: "English", voice: "en-US" },
+    { id: "zh", flag: "🇨🇳", label: "中文", voice: "zh-CN" },
+  ].filter((lang) => LESSON_SETS[lang.id] && LESSON_SETS[lang.id].topics.length);
+
   const KEY_LANG = "reflex-lang";
   const KEY_PROGRESS = "reflex-progress";
   const KEY_LAST = "reflex-last";
@@ -97,6 +110,18 @@
 
   const stripArticle = (text) => text.replace(/^(a|an|the)\s+/, "");
 
+  /** Chuẩn hoá GIỮ chữ Hán (norm() xoá mất chữ Hán) */
+  function normCjk(value) {
+    return String(value == null ? "" : value)
+      .toLowerCase()
+      .replace(/[’‘`´]/g, "'")
+      .replace(/[^\u3400-\u4dbf\u4e00-\u9fffa-z0-9' ]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  const hasCjk = (value) => PY.hasCjk(String(value == null ? "" : value));
+
   function editDistance(a, b, cap) {
     const la = a.length;
     const lb = b.length;
@@ -122,12 +147,22 @@
     return prev[lb];
   }
 
-  /** So khớp "dễ thở": không phân biệt hoa/thường, dấu câu, a/an/the, cho phép sai 1 ký tự */
+  /** So khớp "dễ thở": không phân biệt hoa/thường, dấu câu, a/an/the, cho phép sai 1 ký tự
+      Đặc biệt cho tiếng Trung: gõ chữ Hán, pinyin có dấu hay KHÔNG DẤU đều đúng */
   function matches(input, answer) {
+    const rawInput = normCjk(input);
+    const rawAnswer = normCjk(answer);
+    if (rawInput && rawAnswer) {
+      if (rawInput === rawAnswer) return true;
+      if (rawInput.replace(/ /g, "") === rawAnswer.replace(/ /g, "")) return true;
+    }
+
     const a = norm(input);
     const b = norm(answer);
     if (!a || !b) return false;
     if (a === b) return true;
+    // "ni hao" ≈ "nihao" (gõ pinyin không khoảng trắng)
+    if (a.replace(/ /g, "") === b.replace(/ /g, "")) return true;
     if (stripArticle(a) === stripArticle(b)) return true;
     if (!b.includes(" ") && b.length >= 6 && editDistance(a, b, 1) <= 1) return true;
     return false;
@@ -176,12 +211,14 @@
     tabPlay: $("tab-play"),
     tabStudy: $("tab-study"),
     study: $("study"),
+    studyLangs: $("study-langs"),
     topics: $("topics"),
     studyRandom: $("study-random"),
     lesson: $("lesson"),
     lessonBack: $("lesson-back"),
     lessonIcon: $("lesson-icon"),
     lessonName: $("lesson-name"),
+    lessonLang: $("lesson-lang"),
     lessonLevels: $("lesson-levels"),
     studyFill: $("study-fill"),
     studyCount: $("study-count"),
@@ -200,6 +237,7 @@
     customBack: "lesson",
     topicId: "",
     topicLevelId: "basic",
+    studyLang: "en",
     levelMap: {},
     search: "",
     hideVi: false,
@@ -247,7 +285,18 @@
   /* ============================================================
      CHẾ ĐỘ HỌC — duyệt từ vựng theo chủ đề
      ============================================================ */
-  const itemKey = (topicId, levelId, index) => `${topicId}|${levelId}|${index}`;
+  const studySet = () => LESSON_SETS[state.studyLang] || LESSON_SETS.en || { topics: [] };
+  const studyTopics = () => studySet().topics || [];
+  const studyLangInfo = () => LESSON_LANGS.find((l) => l.id === state.studyLang) || LESSON_LANGS[0] || null;
+
+  const itemKey = (topicId, levelId, index) => `${state.studyLang}|${topicId}|${levelId}|${index}`;
+  const legacyItemKey = (topicId, levelId, index) => `${topicId}|${levelId}|${index}`;
+
+  function isLearned(map, topicId, levelId, index) {
+    if (map[itemKey(topicId, levelId, index)]) return true;
+    // dữ liệu cũ (trước khi có nhiều ngôn ngữ) không có tiền tố ngôn ngữ
+    return state.studyLang === "en" && !!map[legacyItemKey(topicId, levelId, index)];
+  }
 
   function learnedMap() {
     const raw = readJson(KEY_LEARNED);
@@ -257,7 +306,7 @@
   }
 
   function topicById(id) {
-    return LESSONS.topics.find((t) => t.id === id) || null;
+    return studyTopics().find((t) => t.id === id) || null;
   }
 
   function lessonLevel() {
@@ -270,7 +319,7 @@
     const map = learnedMap();
     let n = 0;
     level.items.forEach((_, i) => {
-      if (map[itemKey(topic.id, level.id, i)]) n += 1;
+      if (isLearned(map, topic.id, level.id, i)) n += 1;
     });
     return n;
   }
@@ -295,20 +344,21 @@
 
   function renderTopics() {
     if (!els.topics) return;
+    renderStudyLangs();
     els.topics.innerHTML = "";
-    if (!LESSONS.topics.length) {
-      els.topics.innerHTML = '<p class="menu-note">Không tải được dữ liệu học (lessons.js).</p>';
+    if (!studyTopics().length) {
+      els.topics.innerHTML = '<p class="menu-note">Không tải được dữ liệu học của ngôn ngữ này.</p>';
       return;
     }
 
     const map = learnedMap();
-    for (const topic of LESSONS.topics) {
+    for (const topic of studyTopics()) {
       let total = 0;
       let done = 0;
       topic.levels.forEach((lv) => {
         lv.items.forEach((_, i) => {
           total += 1;
-          if (map[itemKey(topic.id, lv.id, i)]) done += 1;
+          if (isLearned(map, topic.id, lv.id, i)) done += 1;
         });
       });
       const pct = total ? Math.round((done / total) * 100) : 0;
@@ -336,11 +386,12 @@
   function openTopic(topicId, levelId) {
     const topic = topicById(topicId);
     if (!topic) return;
-    const remembered = state.levelMap[topic.id];
+    const mapKey = `${state.studyLang}:${topic.id}`;
+    const remembered = state.levelMap[mapKey];
     const valid = levelId || (topic.levels.some((lv) => lv.id === remembered) ? remembered : "");
     state.topicId = topic.id;
     state.topicLevelId = valid || (topic.levels[0] && topic.levels[0].id) || "basic";
-    state.levelMap[topic.id] = state.topicLevelId;
+    state.levelMap[mapKey] = state.topicLevelId;
     state.search = "";
     if (els.studySearch) els.studySearch.value = "";
     saveStudyState();
@@ -350,11 +401,63 @@
 
   function saveStudyState() {
     writeJson(KEY_STUDY, {
+      lang: state.studyLang,
       topic: state.topicId,
       level: state.topicLevelId,
       levels: state.levelMap,
       hideVi: !!state.hideVi,
     });
+  }
+
+  /* ---------- Chọn ngôn ngữ ở phần Học (English / 中文) ---------- */
+  function renderStudyLangs() {
+    if (!els.studyLangs) return;
+    els.studyLangs.innerHTML = "";
+    els.studyLangs.classList.toggle("hidden", LESSON_LANGS.length < 2);
+
+    for (const lang of LESSON_LANGS) {
+      const on = lang.id === state.studyLang;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "lang-tab" + (on ? " active" : "");
+      btn.setAttribute("aria-pressed", on ? "true" : "false");
+      btn.textContent = `${lang.flag} ${lang.label}`;
+      btn.addEventListener("click", () => {
+        play("click");
+        setStudyLang(lang.id);
+      });
+      els.studyLangs.appendChild(btn);
+    }
+
+    if (els.studySearch) {
+      els.studySearch.placeholder =
+        state.studyLang === "zh"
+          ? "🔍 Tìm theo chữ Hán, pinyin hoặc tiếng Việt…"
+          : "🔍 Tìm theo tiếng Anh hoặc tiếng Việt…";
+    }
+  }
+
+  function setStudyLang(id) {
+    if (id === state.studyLang) return;
+    if (!LESSON_SETS[id] || !LESSON_SETS[id].topics.length) return;
+
+    state.studyLang = id;
+    state.search = "";
+    if (els.studySearch) els.studySearch.value = "";
+
+    const topics = studyTopics();
+    const topic = topics.find((t) => t.id === state.topicId) || topics[0];
+    if (topic) {
+      const mapKey = `${id}:${topic.id}`;
+      const remembered = state.levelMap[mapKey];
+      state.topicId = topic.id;
+      state.topicLevelId = topic.levels.some((lv) => lv.id === remembered) ? remembered : topic.levels[0].id;
+      state.levelMap[mapKey] = state.topicLevelId;
+    }
+
+    saveStudyState();
+    renderTopics();
+    if (els.lesson && !els.lesson.classList.contains("hidden")) renderLesson();
   }
 
   function renderLesson() {
@@ -363,6 +466,10 @@
 
     els.lessonIcon.textContent = topic.icon;
     els.lessonName.textContent = topic.name;
+    if (els.lessonLang) {
+      const info = studyLangInfo();
+      els.lessonLang.textContent = info ? `${info.flag} ${info.label}` : "";
+    }
     els.lessonLevels.innerHTML = "";
 
     for (const lv of topic.levels) {
@@ -375,7 +482,7 @@
       btn.addEventListener("click", () => {
         play("click");
         state.topicLevelId = lv.id;
-        state.levelMap[topic.id] = lv.id;
+        state.levelMap[`${state.studyLang}:${topic.id}`] = lv.id;
         saveStudyState();
         renderLesson();
       });
@@ -407,9 +514,17 @@
 
     const map = learnedMap();
     const q = norm(state.search);
+    const rawQ = normCjk(state.search);
     const rows = level.items
       .map((item, i) => ({ item, i }))
-      .filter(({ item }) => !q || norm(item.en).includes(q) || norm(item.vi).includes(q));
+      .filter(({ item }) => {
+        if (!rawQ) return true;
+        if (q && norm(item.vi).includes(q)) return true;
+        if (q && norm(item.en).includes(q)) return true;
+        if (q && norm(item.ipa || "").includes(q)) return true; // tìm bằng pinyin không dấu
+        if (hasCjk(rawQ) && normCjk(item.en).includes(rawQ)) return true;
+        return false;
+      });
 
     els.studyList.innerHTML = "";
     els.studyList.classList.toggle("hide-vi", !!state.hideVi);
@@ -421,14 +536,15 @@
     }
 
     for (const { item, i } of rows) {
-      const learned = !!map[itemKey(topic.id, level.id, i)];
+      const learned = isLearned(map, topic.id, level.id, i);
+      const cjk = hasCjk(item.en);
       const card = document.createElement("article");
       card.className = "card" + (learned ? " learned" : "");
       card.dataset.index = String(i);
       card.innerHTML = `
         <button class="card-main" type="button">
-          <span class="card-en">${esc(item.en)}</span>
-          ${item.ipa ? `<span class="card-ipa">${esc(item.ipa)}</span>` : ""}
+          <span class="card-en${cjk ? " card-hanzi" : ""}">${esc(item.en)}</span>
+          ${item.ipa ? `<span class="card-ipa${cjk ? " card-pinyin" : ""}">${esc(item.ipa)}</span>` : ""}
           <span class="card-vi">${esc(item.vi)}</span>
         </button>
         <span class="card-tools">
@@ -444,16 +560,19 @@
 
       card.querySelector(".card-say").addEventListener("click", (event) => {
         event.stopPropagation();
-        speak(item.en);
+        speak(item.en, (studyLangInfo() || {}).voice);
       });
 
       card.querySelector(".card-check").addEventListener("click", (event) => {
         event.stopPropagation();
         const all = learnedMap();
         const key = itemKey(topic.id, level.id, i);
-        const now = !all[key];
+        const now = !isLearned(all, topic.id, level.id, i);
         if (now) all[key] = 1;
-        else delete all[key];
+        else {
+          delete all[key];
+          delete all[legacyItemKey(topic.id, level.id, i)];
+        }
         writeJson(KEY_LEARNED, all);
 
         card.classList.toggle("learned", now);
@@ -477,6 +596,7 @@
 
     picked.forEach((item, i) => {
       const long = item.phrase || item.en.split(" ").length >= 3;
+      const cjk = hasCjk(item.en);
 
       // cứ 4 câu thì có 1 câu trắc nghiệm chiều Anh → Việt
       if (i % 4 === 3) {
@@ -496,7 +616,9 @@
       list.push({
         k: long ? "sentence" : "word",
         q: item.vi,
-        a: [item.en],
+        // tiếng Trung: chấp nhận cả chữ Hán lẫn pinyin (có dấu / không dấu)
+        a: cjk ? [item.en].concat(PY.answers(item.ipa)) : [item.en],
+        show: cjk ? `${item.en} · ${item.ipa}` : "",
         hint: item.ipa || "",
       });
     });
@@ -512,12 +634,14 @@
 
   function practiceAllTopics() {
     const items = [];
-    LESSONS.topics.forEach((topic) => {
+    studyTopics().forEach((topic) => {
       topic.levels.forEach((lv) => {
         lv.items.forEach((it) => items.push(it));
       });
     });
-    practiceFrom(items, "🔀 Luyện tổng hợp · 12 chủ đề", 15, "study");
+    const info = studyLangInfo();
+    const label = info ? ` · ${info.label}` : "";
+    practiceFrom(items, `🔀 Luyện tổng hợp ${studyTopics().length} chủ đề${label}`, 15, "study");
   }
 
   /* ---------- Màn chọn ---------- */
@@ -707,12 +831,13 @@
 
   function renderQuestion(q) {
     const target = state.pack.targetLabel;
+    const isZh = state.pack.voice === "zh-CN";
     els.choices.innerHTML = "";
     els.choices.classList.add("hidden");
     els.speakBtn.classList.add("hidden");
     els.input.value = "";
     els.input.disabled = false;
-    els.input.placeholder = "Gõ câu trả lời…";
+    els.input.placeholder = state.pack.placeholder || "Gõ câu trả lời…";
 
     switch (q.k) {
       case "gap":
@@ -723,7 +848,9 @@
 
       case "listen":
         els.promptKind.textContent = "Nghe và viết lại";
-        els.promptText.innerHTML = '<span class="say-icon">🔊</span>Nghe rồi gõ lại từ tiếng Anh';
+        els.promptText.innerHTML = `<span class="say-icon">🔊</span>Nghe rồi gõ lại bằng ${esc(target)}${
+          isZh ? "<br /><small>Gõ chữ Hán hoặc pinyin (có dấu / không dấu) đều được</small>" : ""
+        }`;
         els.speakBtn.classList.remove("hidden");
         setHint(q.hint, true);
         speak(q.say || q.q);
@@ -784,8 +911,11 @@
     if (!q) return "";
     if (q.k === "open") return q.sample || "(câu trả lời của bạn)";
     const first = q.a[0] || "";
-    if (q.k === "gap") return q.q.replace(/_{2,}/g, first);
-    return first;
+    if (q.k === "gap") {
+      const filled = q.q.replace(/_{2,}/g, first);
+      return q.py ? `${filled} (${q.py})` : filled;
+    }
+    return q.show || first;
   }
 
   /* ---------- Chấm điểm ---------- */
@@ -959,6 +1089,11 @@
     if (!q) return "";
     if (q.k === "open") return q.sample || "";
     const first = q.a[0] || "";
+    if (hasCjk(first)) {
+      const count = (first.match(/[\u3400-\u4dbf\u4e00-\u9fff]/g) || []).length;
+      const py = q.a.find((ans) => !hasCjk(ans));
+      return `${count} chữ Hán${py ? " · " + PY.mask(py) : ""}`;
+    }
     return first
       .split(" ")
       .map((word) => (word.length <= 1 ? word : word[0] + "…"))
@@ -1133,12 +1268,12 @@
   }
 
   /* ---------- Đọc từ (Text-to-Speech) ---------- */
-  function speak(text) {
+  function speak(text, lang) {
     if (!text || !("speechSynthesis" in window)) return;
     try {
       window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(String(text));
-      utter.lang = state.pack.voice || "en-US";
+      utter.lang = lang || state.pack.voice || "en-US";
       utter.rate = 0.92;
       window.speechSynthesis.speak(utter);
     } catch (_) {
@@ -1264,11 +1399,15 @@
         if (!topic || !level) return;
 
         const map = learnedMap();
-        const allLearned = level.items.every((_, i) => map[itemKey(topic.id, level.id, i)]);
+        const allLearned = level.items.every((_, i) => isLearned(map, topic.id, level.id, i));
         level.items.forEach((_, i) => {
           const key = itemKey(topic.id, level.id, i);
-          if (allLearned) delete map[key];
-          else map[key] = 1;
+          if (allLearned) {
+            delete map[key];
+            delete map[legacyItemKey(topic.id, level.id, i)];
+          } else {
+            map[key] = 1;
+          }
         });
         writeJson(KEY_LEARNED, map);
         els.studyMarkAll.textContent = allLearned ? "✓ Đánh dấu đã thuộc tất cả" : "↺ Bỏ đánh dấu tất cả";
@@ -1337,15 +1476,22 @@
     /* Khôi phục vị trí học gần nhất */
     const study = readJson(KEY_STUDY) || {};
     if (study.levels && typeof study.levels === "object") state.levelMap = study.levels;
+    if (study.lang && LESSON_SETS[study.lang] && LESSON_SETS[study.lang].topics.length) {
+      state.studyLang = study.lang;
+    } else if (!LESSON_SETS[state.studyLang] || !LESSON_SETS[state.studyLang].topics.length) {
+      state.studyLang = LESSON_LANGS.length ? LESSON_LANGS[0].id : "en";
+    }
+
     const topic = topicById(study.topic);
+    const topics = studyTopics();
     if (topic) {
       state.topicId = topic.id;
       state.topicLevelId = topic.levels.some((lv) => lv.id === study.level) ? study.level : topic.levels[0].id;
-      state.levelMap[topic.id] = state.topicLevelId;
+      state.levelMap[`${state.studyLang}:${topic.id}`] = state.topicLevelId;
       state.hideVi = !!study.hideVi;
-    } else if (LESSONS.topics.length) {
-      state.topicId = LESSONS.topics[0].id;
-      state.topicLevelId = LESSONS.topics[0].levels[0].id;
+    } else if (topics.length) {
+      state.topicId = topics[0].id;
+      state.topicLevelId = topics[0].levels[0].id;
     }
 
     renderLang();

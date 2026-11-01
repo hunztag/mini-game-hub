@@ -34,6 +34,18 @@ window.ReflexData = (() => {
   const mc = (q, o, answer, hint) => ({ k: "choice", q, o: [].concat(o), a: [answer], hint: hint || "" });
   const ls = (text, hint) => ({ k: "listen", q: text, say: text, a: [text], hint: hint || "" });
 
+  /* ---------- Helper riêng cho TIẾNG TRUNG ----------
+     Người chơi có thể gõ CHỮ HÁN, PINYIN CÓ DẤU hoặc PINYIN KHÔNG DẤU.
+     `show` là đáp án hiển thị khi chấm (chữ Hán · pinyin).            */
+  const PY = window.ReflexPinyin || { answers: (p) => [p], mask: (p) => p, hasCjk: () => false };
+  const zAns = (chars, py) => [chars].concat(PY.answers(py));
+  const zShow = (chars, py) => `${chars} · ${py}`;
+  const zHint = (py, extra) => [PY.mask(py), extra].filter(Boolean).join(" ");
+  const zh = (q, chars, py, extra) => ({ k: "word", q, a: zAns(chars, py), show: zShow(chars, py), hint: zHint(py, extra) });
+  const zs = (q, chars, py, extra) => ({ k: "sentence", q, a: zAns(chars, py), show: zShow(chars, py), hint: zHint(py, extra) });
+  const zg = (q, chars, py, extra) => ({ k: "gap", q, a: zAns(chars, py), py, show: zShow(chars, py), hint: extra || "" });
+  const zl = (chars, py) => ({ k: "listen", q: chars, say: chars, a: zAns(chars, py), show: zShow(chars, py), hint: "" });
+
   /* ============================================================
      🇬🇧 TIẾNG ANH
      ============================================================ */
@@ -194,6 +206,167 @@ window.ReflexData = (() => {
     ],
   };
 
+  /* ============================================================
+     🇨🇳 TIẾNG TRUNG (中文) — hiện chữ Hán + pinyin
+     ============================================================ */
+  const ZH = {
+    id: "zh",
+    flag: "🇨🇳",
+    name: "中文",
+    targetLabel: "tiếng Trung",
+    sourceLabel: "tiếng Việt",
+    voice: "zh-CN",
+    placeholder: "Gõ chữ Hán hoặc pinyin (có dấu / không dấu)…",
+    levels: [
+      /* ------------------------- CƠ BẢN ------------------------- */
+      {
+        id: "basic",
+        name: "Cơ bản",
+        desc: "Từ vựng quen thuộc, câu ngắn",
+        time: 20,
+        stages: [
+          {
+            name: "Làm quen",
+            questions: [
+              zh("con mèo", "猫", "māo", "🐱"),
+              zh("con chó", "狗", "gǒu", "🐶"),
+              zh("quả táo", "苹果", "píngguǒ", "🍎"),
+              zh("nước", "水", "shuǐ", "💧"),
+              mc("Chữ nào có nghĩa là “ngôi nhà”?", ["家", "马", "猫", "山"], "家"),
+              zh("quyển sách", "书", "shū", "📖"),
+              zl("朋友", "péngyou"),
+              zh("màu đỏ", "红色", "hóngsè", "🔴"),
+            ],
+          },
+          {
+            name: "Đồ vật & gia đình",
+            questions: [
+              zh("cái bàn", "桌子", "zhuōzi", "🪵"),
+              zh("cái ghế", "椅子", "yǐzi", "🪑"),
+              zh("mẹ", "妈妈", "māma", "👩"),
+              zh("bố", "爸爸", "bàba", "👨"),
+              zh("anh trai", "哥哥", "gēge", "👦"),
+              zh("chị gái", "姐姐", "jiějie", "👧"),
+              zh("trường học", "学校", "xuéxiào", "🏫"),
+              mc("Chữ nào có nghĩa là “bạn bè”?", ["朋友", "家人", "老师", "医生"], "朋友"),
+            ],
+          },
+          {
+            name: "Câu ngắn",
+            questions: [
+              zs("Tôi thích ăn táo.", "我喜欢吃苹果。", "Wǒ xǐhuan chī píngguǒ."),
+              zs("Cô ấy là giáo viên.", "她是老师。", "Tā shì lǎoshī."),
+              zs("Hôm nay trời mưa.", "今天下雨。", "Jīntiān xiàyǔ."),
+              zs("Tôi có hai con mèo.", "我有两只猫。", "Wǒ yǒu liǎng zhī māo."),
+              zs("Anh ấy đi làm mỗi ngày.", "他每天去上班。", "Tā měitiān qù shàngbān."),
+              zs("Chúng tôi đang học tiếng Trung.", "我们在学中文。", "Wǒmen zài xué Zhōngwén."),
+              zs("Tôi tên là Nam.", "我叫南。", "Wǒ jiào Nán."),
+              zs("Tôi hai mươi tuổi.", "我二十岁。", "Wǒ èrshí suì."),
+            ],
+          },
+        ],
+      },
+
+      /* ------------------------ TRUNG CẤP ----------------------- */
+      {
+        id: "medium",
+        name: "Trung cấp",
+        desc: "Từ vựng mở rộng, ngữ pháp, câu dài",
+        time: 15,
+        stages: [
+          {
+            name: "Từ vựng mở rộng",
+            questions: [
+              zh("kinh nghiệm", "经验", "jīngyàn"),
+              zh("môi trường", "环境", "huánjìng"),
+              zh("cơ hội", "机会", "jīhuì"),
+              zh("quyết định", "决定", "juédìng", "(danh từ / động từ)"),
+              zh("phát triển", "发展", "fāzhǎn", "(động từ)"),
+              zh("giải thích", "解释", "jiěshì"),
+              zh("ảnh hưởng", "影响", "yǐngxiǎng"),
+              mc("Chữ nào có nghĩa là “sự khác biệt”?", ["区别", "相同", "困难", "容易"], "区别"),
+            ],
+          },
+          {
+            name: "Điền chữ còn thiếu",
+            questions: [
+              zg("我以前是老师，现在是___生。", "学", "xué", "học (学生 = học sinh)"),
+              zg("我___北京工作。", "在", "zài", "ở / tại"),
+              zg("他每天___汉语。", "学习", "xuéxí", "học"),
+              zg("这___书很有意思。", "本", "běn", "lượng từ cho sách"),
+              zg("我___喜欢吃苹果。", "很", "hěn", "rất"),
+              zg("昨天我___电影了。", "看", "kàn", "xem (đã xem)"),
+              zg("他___我早点儿回家。", "让", "ràng", "bảo / để"),
+              zg("如果明天下雨，我们___不去。", "就", "jiù", "thì"),
+            ],
+          },
+          {
+            name: "Câu trung cấp",
+            questions: [
+              zs("Tôi đã sống ở đây được 5 năm.", "我在这里住了五年了。", "Wǒ zài zhèlǐ zhù le wǔ nián le."),
+              zs("Nếu tôi có thời gian, tôi sẽ đi du lịch.", "如果我有时间，我就去旅行。", "Rúguǒ wǒ yǒu shíjiān, wǒ jiù qù lǚxíng."),
+              zs("Anh ấy nói rằng anh ấy sẽ đến muộn.", "他说他会迟到。", "Tā shuō tā huì chídào."),
+              zs("Cô ấy thích đọc sách hơn xem TV.", "她喜欢看书，不喜欢看电视。", "Tā xǐhuan kànshū, bù xǐhuan kàn diànshì."),
+              zs("Bạn có thể giúp tôi mang cái này không?", "你能帮我拿这个吗？", "Nǐ néng bāng wǒ ná zhège ma?"),
+              zs("Học tiếng Trung rất quan trọng.", "学习中文很重要。", "Xuéxí Zhōngwén hěn zhòngyào."),
+              zs("Tôi ước mình có nhiều tiền hơn.", "我希望我有更多的钱。", "Wǒ xīwàng wǒ yǒu gèng duō de qián."),
+              zs("Bức tranh này được vẽ bởi Picasso.", "这幅画是毕加索画的。", "Zhè fú huà shì Bìjiāsuǒ huà de."),
+            ],
+          },
+        ],
+      },
+
+      /* ------------------------- NÂNG CAO ----------------------- */
+      {
+        id: "hard",
+        name: "Nâng cao",
+        desc: "Thành ngữ, sắc thái, câu phức",
+        time: 11,
+        stages: [
+          {
+            name: "Từ trừu tượng",
+            questions: [
+              zh("trách nhiệm", "责任", "zérèn"),
+              zh("thành tựu", "成就", "chéngjiù"),
+              zh("thuyết phục", "说服", "shuōfú"),
+              zh("kiên nhẫn", "耐心", "nàixīn"),
+              zh("sự thỏa hiệp", "妥协", "tuǒxié"),
+              zh("tận dụng", "利用", "lìyòng"),
+              zh("mâu thuẫn", "矛盾", "máodùn"),
+              mc("Chữ nào có nghĩa là “sự tin tưởng”?", ["信任", "怀疑", "惊讶", "后悔"], "信任"),
+            ],
+          },
+          {
+            name: "Nghe và phản xạ",
+            questions: [
+              zl("朋友", "péngyou"),
+              zl("时间", "shíjiān"),
+              zl("重要", "zhòngyào"),
+              zl("问题", "wèntí"),
+              zl("喜欢", "xǐhuan"),
+              zl("谢谢", "xièxie"),
+              zl("对不起", "duìbuqǐ"),
+              zl("没问题", "méi wèntí"),
+            ],
+          },
+          {
+            name: "Câu phức",
+            questions: [
+              zs("Mặc dù trời mưa, tôi vẫn đi chạy bộ.", "虽然下雨，我还是去跑步了。", "Suīrán xiàyǔ, wǒ háishi qù pǎobù le."),
+              zs("Anh ấy vừa ăn cơm xong thì điện thoại reo.", "他刚吃完饭，电话就响了。", "Tā gāng chī wán fàn, diànhuà jiù xiǎng le."),
+              zs("Nếu bạn cố gắng, bạn sẽ thành công.", "如果你努力，你就会成功。", "Rúguǒ nǐ nǔlì, nǐ jiù huì chénggōng."),
+              zs("Tôi không chỉ học tiếng Trung mà còn học tiếng Anh.", "我不仅学中文，还学英文。", "Wǒ bùjǐn xué Zhōngwén, hái xué Yīngwén."),
+              zs("Càng luyện tập nhiều, bạn càng tiến bộ nhanh.", "练习得越多，进步得越快。", "Liànxí de yuè duō, jìnbù de yuè kuài."),
+              zs("Đây là cuốn sách mà giáo viên giới thiệu cho tôi.", "这是老师给我推荐的书。", "Zhè shì lǎoshī gěi wǒ tuījiàn de shū."),
+              zs("Tôi đã quen với cuộc sống ở đây rồi.", "我已经习惯这里的生活了。", "Wǒ yǐjīng xíguàn zhèlǐ de shēnghuó le."),
+              zs("Anh ấy nhất định sẽ đến đúng giờ.", "他一定会准时到。", "Tā yídìng huì zhǔnshí dào."),
+            ],
+          },
+        ],
+      },
+    ],
+  };
+
   /* ------------------------------------------------------------
      Thêm pack mới tại đây, ví dụ:
 
@@ -208,5 +381,5 @@ window.ReflexData = (() => {
      Khi có từ 2 pack trở lên, ô chọn ngôn ngữ sẽ tự hiện ra.
      ------------------------------------------------------------ */
 
-  return { packs: [EN] };
+  return { packs: [EN, ZH] };
 })();
